@@ -1,6 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:chatbotbnn/page/setting_page.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/login_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -16,55 +18,118 @@ class DrawerCustom extends StatefulWidget {
 }
 
 class _DrawerCustomState extends State<DrawerCustom> {
+  final List<Map<String, String>> chatHistory = [
+    {'role': 'user', 'message': 'Xin chào!'},
+    {'role': 'bot', 'message': 'Chào bạn! Tôi có thể giúp gì?'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+    {'role': 'user', 'message': 'Hôm nay thời tiết thế nào?'},
+    {'role': 'bot', 'message': 'Hôm nay trời nắng đẹp! 😊'},
+  ];
+
   @override
   Widget build(BuildContext context) {
     final selectedColor = Provider.of<Providercolor>(context).selectedColor;
+// Lọc danh sách chỉ chứa các câu hỏi từ người dùng
+    final userQuestions =
+        chatHistory.where((chat) => chat['role'] == 'user').toList();
 
     return Drawer(
       backgroundColor: selectedColor,
       child: SafeArea(
         minimum: const EdgeInsets.only(left: 5, top: 27, right: 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            const Divider(color: Colors.black),
+            Text(
+              'Chào mừng đến với Smart Chat!',
+              style: GoogleFonts.robotoCondensed(
+                  fontSize: 16, color: Colors.orange),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   children: [
                     _buildListTile(
-                      icon: FontAwesomeIcons.dashboard,
-                      title: 'Dasbroads',
+                      icon: Icons.chat,
+                      title: 'Smart Chat',
                       onTap: () => widget.onItemSelected(0),
                     ),
                     _buildListTile(
                       icon: FontAwesomeIcons.message,
-                      title: 'Chat',
+                      title: 'Danh sách Chat Bot',
                       onTap: () => widget.onItemSelected(1),
                     ),
-                    _buildListTile(
-                      icon: FontAwesomeIcons.history,
-                      title: 'Lịch sử chat',
-                      onTap: () => widget.onItemSelected(2),
+                    const Divider(
+                      color: Colors.white,
                     ),
-                    _buildListTile(
-                      icon: FontAwesomeIcons.person,
-                      title: 'Cá nhân',
-                      onTap: () => widget.onItemSelected(3),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lịch sử chat',
+                            style: GoogleFonts.robotoCondensed(
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
                     ),
-                    _buildListTile(
-                      icon: FontAwesomeIcons.gear,
-                      title: 'Cài đặt',
-                      onTap: () => widget.onItemSelected(4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 450),
+                      child: ListView.builder(
+                        // shrinkWrap: true,
+                        // physics: const NeverScrollableScrollPhysics(),
+                        itemCount:
+                            userQuestions.length, // Sử dụng danh sách đã lọc
+                        itemBuilder: (context, index) {
+                          final chat =
+                              userQuestions[index]; // Lấy từ danh sách đã lọc
+                          return Container(
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 5, horizontal: 10),
+                            alignment: Alignment
+                                .centerLeft, // Luôn căn trái (vì chỉ hiển thị câu hỏi của user)
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors
+                                    .blue[100], // Dùng màu riêng cho câu hỏi
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                chat['message'] ??
+                                    '', // Hiển thị nội dung câu hỏi
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: _buildColorSelector(context),
-            ),
+            _buildColorSelector(context),
+            _buildUserAccount(),
           ],
         ),
       ),
@@ -88,10 +153,15 @@ class _DrawerCustomState extends State<DrawerCustom> {
           //   height: 30,
           //   fit: BoxFit.contain,
           // ),
-          const Text(
-            'Bộ nông nghiệp',
-            style: TextStyle(color: Colors.white),
-          )
+
+          IconButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const Icon(
+                Icons.drive_file_rename_outline_sharp,
+                color: Colors.white,
+              ))
         ],
       ),
     );
@@ -136,10 +206,10 @@ class _DrawerCustomState extends State<DrawerCustom> {
       const Color(0xff6b240c)
     ];
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          Text('Màu sắc',
+          Text('Màu sắc:',
               style: GoogleFonts.robotoCondensed(
                   fontSize: 15, color: Colors.white)),
           const SizedBox(width: 5),
@@ -166,6 +236,149 @@ class _DrawerCustomState extends State<DrawerCustom> {
           ),
         ],
       ),
+    );
+  }
+
+// _buildUserAccount widget
+  Widget _buildUserAccount() {
+    final _loginService = LoginService();
+    return FutureBuilder<Map<String, String>?>(
+      future:
+          _loginService.getAccountFullNameAndUsername(), // Fetch the user data
+      builder: (context, snapshot) {
+        // Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: CircularProgressIndicator(), // Show loading indicator
+            ),
+            title: GestureDetector(
+              onTap: () {
+                widget.onItemSelected(2);
+              },
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Loading...', // Placeholder text
+                        style: GoogleFonts.robotoCondensed(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                      const Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Loading...', // Placeholder text
+                    style: GoogleFonts.robotoCondensed(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        // Error state
+        else if (snapshot.hasError) {
+          return ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: Image.asset(
+                'resources/logo_smart.png',
+                height: 40,
+                width: 40,
+                fit: BoxFit.cover,
+              ),
+            ),
+            title: GestureDetector(
+              onTap: () {
+                widget.onItemSelected(2);
+              },
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Error loading user info', // Display error message
+                        style: GoogleFonts.robotoCondensed(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '',
+                    style: GoogleFonts.robotoCondensed(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        // Data successfully fetched
+        else if (snapshot.hasData && snapshot.data != null) {
+          final userName = snapshot.data?['username'] ?? 'Không có tên';
+          final email = snapshot.data?['email'] ?? 'Không có email';
+
+          return ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: Image.asset(
+                'resources/logo_smart.png',
+                height: 40,
+                width: 40,
+                fit: BoxFit.cover,
+              ),
+            ),
+            title: GestureDetector(
+              onTap: () {
+                widget.onItemSelected(2);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        userName, // Display fetched username
+                        style: GoogleFonts.robotoCondensed(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                      ),
+                      const Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    email, // Display fetched email
+                    style: GoogleFonts.robotoCondensed(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Container(); // Return an empty container if no data or error
+      },
     );
   }
 }

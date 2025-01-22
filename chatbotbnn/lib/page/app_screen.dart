@@ -1,9 +1,6 @@
-import 'package:chatbotbnn/navigation/bottom_navigation.dart';
 import 'package:chatbotbnn/navigation/drawer.dart';
 import 'package:chatbotbnn/page/chat_page.dart';
-import 'package:chatbotbnn/page/history_page.dart';
-import 'package:chatbotbnn/page/home_page.dart';
-import 'package:chatbotbnn/page/profile_page.dart';
+import 'package:chatbotbnn/page/chatbot_page.dart';
 import 'package:chatbotbnn/page/setting_page.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
@@ -19,18 +16,17 @@ class AppScreen extends StatefulWidget {
 }
 
 class _AppScreenState extends State<AppScreen> {
-  Widget _getPage(int index) {
+  Widget _getPage(int index, {String chatbotCode = ''}) {
     switch (index) {
       case 0:
-        return const HomePage();
+        return ChatPage(
+          chatbotCode: chatbotCode,
+        );
       case 1:
-        return const ChatPage();
+        return const ChatbotPage();
       case 2:
-        return const HistoryPage();
-      case 3:
-        return const ProfilePage();
-      case 4:
         return const SettingPage();
+
       default:
         return const Center(
           child: Text(
@@ -44,15 +40,12 @@ class _AppScreenState extends State<AppScreen> {
   String _getAppBarTitle(BuildContext context, int index) {
     switch (index) {
       case 0:
-        return 'TRANG CHỦ';
+        return 'SMART CHAT';
       case 1:
-        return 'TRỢ LÝ AI BỘ NÔNG NGHIỆP';
+        return 'DANH SÁCH CHAT BOT';
       case 2:
-        return 'LỊCH SỬ CHAT';
-      case 3:
-        return 'CÁ NHÂN';
-      case 4:
         return 'CÀI ĐẶT';
+
       default:
         return 'activity_report';
     }
@@ -88,19 +81,29 @@ class _AppScreenState extends State<AppScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.drive_file_rename_outline_sharp)),
+          )
+        ],
         iconTheme: const IconThemeData(
           color: Colors.white,
         ),
         centerTitle: true,
         backgroundColor: selectedColor,
       ),
+
       body: _getPage(currentIndex),
-      bottomNavigationBar: BottomNavigation(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          navigationProvider.setCurrentIndex(index);
-        },
-      ),
+      // bottomNavigationBar: BottomNavigation(
+      //   currentIndex: currentIndex,
+      //   onTap: (index) {
+      //     navigationProvider.setCurrentIndex(index);
+      //   },
+      // ),
+
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

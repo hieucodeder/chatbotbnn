@@ -30,7 +30,7 @@ class _SlapsPageState extends State<SlapsPage> with TickerProviderStateMixin {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => LoginPage()),
+          MaterialPageRoute(builder: (context) => const LoginPage()),
         );
       }
     });
@@ -67,6 +67,15 @@ class _SlapsPageState extends State<SlapsPage> with TickerProviderStateMixin {
                     //   width: 180,
                     //   height: 50,
                     // ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(100),
+                      child: Image.asset(
+                        'resources/logo_AI.png',
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                     const Text('Bộ nông nghiệp Việt Nam'),
                     const SizedBox(height: 20),
                     Text(

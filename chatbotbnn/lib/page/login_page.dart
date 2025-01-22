@@ -1,7 +1,10 @@
+import 'package:chatbotbnn/model/body_login.dart';
 import 'package:chatbotbnn/page/app_screen.dart';
-import 'package:chatbotbnn/page/home_page.dart';
+import 'package:chatbotbnn/page/chatbot_page.dart';
+import 'package:chatbotbnn/service/login_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,10 +17,45 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
   bool _isPasswordVisible = false;
+  final _loginService = LoginService();
+
+  bool _isLoading = false; // Trạng thái đang tải
+
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang xử lý dữ liệu...')),
+      );
+
+      final String username = _usernameController.text.trim();
+      final String password = _passwordController.text.trim();
+
+      // Create BodyLogin object from username and password
+      final BodyLogin loginData =
+          BodyLogin(username: username, password: password);
+
+      try {
+        Map<String, dynamic>? response = await _loginService.login(loginData);
+
+        if (response != null) {
+          // Successful login
+          showLoginSnackbar(context);
+        } else {
+          setState(() {});
+          showLoginErrorSnackbar(context); // Show error if login fails
+        }
+      } catch (error) {
+        setState(() {});
+        showLoginErrorSnackbar(context); // Show error if there's an exception
+      }
+    } else {
+      // If form validation fails
+      showValidationErrorSnackbar(context, 'Vui lòng điền đầy đủ thông tin.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +107,11 @@ class _LoginPageState extends State<LoginPage> {
                   margin: const EdgeInsets.symmetric(vertical: 80),
                   child: Align(
                     alignment: Alignment.topCenter,
-                    // child: SvgPicture.asset('resources/logonextco.svg',
-                    //     width: 80, height: 46),
+                    child: Image.asset(
+                      'resources/logo_smart.png',
+                      width: 100,
+                      height: 100,
+                    ),
                   ),
                 ),
                 Container(
@@ -142,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                                       return null;
                                     },
                                     style: const TextStyle(color: Colors.black),
-                                    controller: _phoneController,
+                                    controller: _usernameController,
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: const Color.fromARGB(
@@ -305,12 +346,7 @@ class _LoginPageState extends State<LoginPage> {
                                 color: Color.fromARGB(255, 9, 105, 160),
                               ),
                             ),
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const AppScreen()));
-                            },
+                            onPressed: _login,
                             child: Row(
                               children: [
                                 const Align(

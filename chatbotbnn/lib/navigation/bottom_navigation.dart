@@ -54,7 +54,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
             isSelected: widget.currentIndex == 0,
             activeIcon: FontAwesomeIcons.home,
             inactiveIcon: Icons.home_outlined,
-            label: 'Trang chủ',
+            label: 'Home',
           ),
           _buildNavItem(
             isSelected: widget.currentIndex == 1,
