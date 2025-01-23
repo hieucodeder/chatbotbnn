@@ -39,6 +39,7 @@ class Data {
   String? chatbotCode;
   String? userId;
   String? chatbotName;
+  String? attributes;
   String? createdAt;
   String? updatedAt;
   int? totalCount;
@@ -50,6 +51,7 @@ class Data {
       this.chatbotCode,
       this.userId,
       this.chatbotName,
+      this.attributes,
       this.createdAt,
       this.updatedAt,
       this.totalCount,
@@ -61,6 +63,7 @@ class Data {
     chatbotCode = json['chatbot_code'];
     userId = json['user_id'];
     chatbotName = json['chatbot_name'];
+    attributes = json['attributes'];
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
     totalCount = json['total_count'];
@@ -74,6 +77,7 @@ class Data {
     data['chatbot_code'] = chatbotCode;
     data['user_id'] = userId;
     data['chatbot_name'] = chatbotName;
+    data['attributes'] = attributes;
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
     data['total_count'] = totalCount;

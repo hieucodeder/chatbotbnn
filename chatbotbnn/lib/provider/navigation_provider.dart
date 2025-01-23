@@ -9,4 +9,13 @@ class NavigationProvider extends ChangeNotifier {
     _currentIndex = index;
     notifyListeners();
   }
+
+  String _chatbotistoryId = '';
+
+  String get currentIndexhistoryId => _chatbotistoryId;
+
+  void setCurrentIndexHistoryId(String index) {
+    _chatbotistoryId = index;
+    notifyListeners();
+  }
 }

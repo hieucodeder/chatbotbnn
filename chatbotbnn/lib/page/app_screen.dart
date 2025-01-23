@@ -1,3 +1,4 @@
+import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/navigation/drawer.dart';
 import 'package:chatbotbnn/page/chat_page.dart';
 import 'package:chatbotbnn/page/chatbot_page.dart';
@@ -16,14 +17,23 @@ class AppScreen extends StatefulWidget {
 }
 
 class _AppScreenState extends State<AppScreen> {
-  Widget _getPage(int index, {String chatbotCode = ''}) {
+  Widget _getPage(
+    int index, {
+    String history = '',
+  }) {
     switch (index) {
       case 0:
         return ChatPage(
-          chatbotCode: chatbotCode,
+          historyId: history,
         );
       case 1:
-        return const ChatbotPage();
+        return ChatbotPage(
+          onSelected: (int selectedIndex) {
+            // Handle the selection logic here
+            // You can pass the selected index to the parent or handle it locally
+            print('Selected index: $selectedIndex');
+          },
+        );
       case 2:
         return const SettingPage();
 
@@ -40,9 +50,9 @@ class _AppScreenState extends State<AppScreen> {
   String _getAppBarTitle(BuildContext context, int index) {
     switch (index) {
       case 0:
-        return 'SMART CHAT';
+        return 'TRỢ LÝ AI';
       case 1:
-        return 'DANH SÁCH CHAT BOT';
+        return 'DANH TRỢ LÝ AI';
       case 2:
         return 'CÀI ĐẶT';
 
@@ -59,6 +69,7 @@ class _AppScreenState extends State<AppScreen> {
     });
   }
 
+  BodyHistory bodyHistory = BodyHistory();
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Provider.of<NavigationProvider>(context);
@@ -71,6 +82,7 @@ class _AppScreenState extends State<AppScreen> {
           navigationProvider.setCurrentIndex(index);
           Navigator.pop(context);
         },
+        bodyHistory: bodyHistory,
       ),
       appBar: AppBar(
         title: Text(
@@ -95,15 +107,7 @@ class _AppScreenState extends State<AppScreen> {
         centerTitle: true,
         backgroundColor: selectedColor,
       ),
-
       body: _getPage(currentIndex),
-      // bottomNavigationBar: BottomNavigation(
-      //   currentIndex: currentIndex,
-      //   onTap: (index) {
-      //     navigationProvider.setCurrentIndex(index);
-      //   },
-      // ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

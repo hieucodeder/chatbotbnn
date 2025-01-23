@@ -1,4 +1,3 @@
-import 'package:chatbotbnn/model/get_code_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/chatbotcolors_provider.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
@@ -6,10 +5,12 @@ import 'package:chatbotbnn/service/role_service.dart';
 import 'package:flutter/material.dart';
 import 'package:chatbotbnn/model/body_role.dart';
 import 'package:chatbotbnn/model/role_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class ChatbotPage extends StatefulWidget {
-  const ChatbotPage({super.key});
+  final Function(int) onSelected;
+  const ChatbotPage({super.key, required this.onSelected});
 
   @override
   _ChatbotPageState createState() => _ChatbotPageState();
@@ -48,19 +49,17 @@ class _ChatbotPageState extends State<ChatbotPage> {
   }
 
   Future<void> _fetchAndNavigate() async {
-    // Lấy chatbotCode từ provider
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
 
     if (chatbotCode != null) {
       setState(() {
-        isLoading = true; // Set loading state to true
+        isLoading = true;
       });
 
-      // Gọi API với chatbotCode
       try {
-        // Giả sử gọi API với chatbotCode
         final result = await fetchGetCodeModel(chatbotCode);
+        widget.onSelected(0);
 
         if (result != null) {
         } else {}
@@ -78,14 +77,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ? const Center(
             child: Text('No chatbots found.'),
           )
-        : GridView.builder(
+        : ListView.builder(
             padding: const EdgeInsets.all(8.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1,
-            ),
             itemCount: chatbotList.length,
             itemBuilder: (context, index) {
               final chatbot = chatbotList[index];
@@ -103,11 +96,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
                         .setChatbotCode(chatbot.chatbotCode!);
 
                     _fetchAndNavigate();
-                  } else {}
+                  }
                 },
                 child: Consumer<ChatbotcolorsProvider>(
                   builder: (context, chatbotcolorsProvider, child) {
-                    // Retrieve the selected index from the provider
                     bool isSelected =
                         chatbotcolorsProvider.selectedIndex == index;
 
@@ -119,27 +111,44 @@ class _ChatbotPageState extends State<ChatbotPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircleAvatar(
-                            backgroundImage: chatbot.picture != null &&
-                                    chatbot.picture!.isNotEmpty
-                                ? NetworkImage(chatbot.picture!)
-                                : const AssetImage('resources/logo_smart.png')
-                                    as ImageProvider,
-                            radius: 35,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            chatbot.chatbotName ?? 'No Name',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundImage: chatbot.picture != null &&
+                                      chatbot.picture!.isNotEmpty
+                                  ? NetworkImage(chatbot.picture!)
+                                  : const AssetImage('resources/logo_smart.png')
+                                      as ImageProvider,
+                              radius: 35,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  chatbot.chatbotName ?? 'No Name',
+                                  style: GoogleFonts.robotoCondensed(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 250,
+                                  child: Text(
+                                    chatbot.attributes ??
+                                        'Chatbot sử dụng trí tuệ nhân tạo (AI) hoặc các quy tắc lập trình để xử lý và phản hồi lại các câu hỏi hoặc yêu cầu từ người dùng.',
+                                    maxLines: 3,
+                                    style: GoogleFonts.robotoCondensed(
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
