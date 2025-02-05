@@ -8,8 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<HistoryAllModel> fetchChatHistoryAll(
     String? chatbotCode, String? startDate, String? endDate) async {
   // Define the API URL
-  final String apiUrl =
-      '${ApiConfig.baseUrlBasic}chatbot-history/get-chatbot-history';
+  final String apiUrl = '${ApiConfig.baseUrlHistory}/get-chatbot-history';
 
   try {
     // Retrieve the userId from SharedPreferences

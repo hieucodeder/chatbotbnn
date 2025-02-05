@@ -1,20 +1,20 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:chatbotbnn/model/body_history.dart';
+import 'package:chatbotbnn/model/delete_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
-import 'package:chatbotbnn/model/history_model.dart';
-import 'package:chatbotbnn/page/chat_page.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/delete_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
-import 'package:chatbotbnn/service/history_service.dart';
 import 'package:chatbotbnn/service/login_service.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawerCustom extends StatefulWidget {
   final BodyHistory bodyHistory;
@@ -35,6 +35,11 @@ class _DrawerCustomState extends State<DrawerCustom> {
     _fetchHistoryAllModel();
   }
 
+  Future<String?> getChatbotName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('chatbot_name');
+  }
+
   void _fetchHistoryAllModel() {
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
@@ -52,85 +57,159 @@ class _DrawerCustomState extends State<DrawerCustom> {
     } catch (e) {}
   }
 
+  Future<void> deleteChatHistory(BuildContext context) async {
+    try {
+      if (!mounted) return;
+
+      final historyId = Provider.of<NavigationProvider>(context, listen: false)
+          .currentIndexhistoryId;
+
+      final DeleteModel result = await fetchChatHistoryDelete(historyId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedColor = Provider.of<Providercolor>(context).selectedColor;
-    TextEditingController _startDateController = TextEditingController();
-    TextEditingController _endDateController = TextEditingController();
-    DateTime _startDate = DateTime.now();
-    DateTime _endDate = DateTime.now();
+    TextEditingController startDateController = TextEditingController();
+    TextEditingController endDateController = TextEditingController();
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
 
     // Hàm chọn ngày
-    Future<void> _selectStartDate(BuildContext context) async {
+    Future<void> selectStartDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
         context: context,
-        initialDate: _startDate,
+        initialDate: startDate,
         firstDate: DateTime(2000),
         lastDate: DateTime(2101),
       );
-      if (picked != null && picked != _startDate)
+      if (picked != null && picked != startDate) {
         setState(() {
-          _startDate = picked;
-          _startDateController.text =
-              DateFormat('dd/MM/yyyy').format(_startDate); // Định dạng ngày
+          startDate = picked;
+          startDateController.text =
+              DateFormat('dd/MM/yyyy').format(startDate); // Định dạng ngày
         });
+      }
     }
 
     // Hàm chọn ngày kết thúc
-    Future<void> _selectEndDate(BuildContext context) async {
+    Future<void> selectEndDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
         context: context,
-        initialDate: _endDate,
-        firstDate: _startDate, // Ngày kết thúc không thể nhỏ hơn ngày bắt đầu
+        initialDate: endDate,
+        firstDate: startDate, // Ngày kết thúc không thể nhỏ hơn ngày bắt đầu
         lastDate: DateTime(2101),
       );
-      if (picked != null && picked != _endDate)
+      if (picked != null && picked != endDate) {
         setState(() {
-          _endDate = picked;
-          _endDateController.text =
-              DateFormat('dd/MM/yyyy').format(_endDate); // Định dạng ngày
+          endDate = picked;
+          endDateController.text =
+              DateFormat('dd/MM/yyyy').format(endDate); // Định dạng ngày
         });
+      }
     }
 
     return Drawer(
       backgroundColor: selectedColor,
       child: SafeArea(
-        minimum: const EdgeInsets.only(left: 5, top: 27, right: 20),
+        minimum: const EdgeInsets.only(left: 10, top: 20, right: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            Text(
-              'Chào mừng đến với Smart Chat!',
-              style: GoogleFonts.robotoCondensed(
-                  fontSize: 16, color: Colors.orange),
+            Container(
+              width: double.infinity,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                color: const Color(0xFF3B3B3B).withOpacity(0.5),
+              ),
+              child: Row(
+                children: [
+                  Image.asset(
+                    'resources/logo_smart.png',
+                    width: 30,
+                    height: 25,
+                    fit: BoxFit.cover,
+                  ),
+                  const SizedBox(
+                    width: 5,
+                  ),
+                  FutureBuilder<String?>(
+                    future: getChatbotName(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      }
+                      if (snapshot.hasError || !snapshot.hasData) {
+                        return const Text('No Name');
+                      }
+                      return Text(
+                        snapshot.data ?? 'No Name',
+                        style: GoogleFonts.robotoCondensed(
+                            fontSize: 15, color: Colors.white),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildListTile(
-                      icon: Icons.chat,
-                      title: 'Smart Chat',
-                      onTap: () => widget.onItemSelected(0),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: _buildListTile(
+                        icon: Icons.chat,
+                        title: 'Smart Chat',
+                        onTap: () => widget.onItemSelected(0),
+                      ),
                     ),
-                    _buildListTile(
-                      icon: FontAwesomeIcons.message,
-                      title: 'Danh sách Chat Bot',
-                      onTap: () => widget.onItemSelected(1),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: _buildListTile(
+                        icon: FontAwesomeIcons.message,
+                        title: 'Danh sách Trợ lý AI',
+                        onTap: () => widget.onItemSelected(1),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 5,
                     ),
                     const Divider(
-                      color: Colors.white,
+                      color: Colors.white38,
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _startDateController,
+                    Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            color: const Color(0xFF3B3B3B).withOpacity(0.5),
+                          ),
+                          child: TextField(
+                            controller: startDateController,
                             readOnly: true,
                             decoration: InputDecoration(
-                              hintText: '  Ngày bắt đầu',
+                              hintText: '  Ngày bắt đầu -> Ngày kết thúc',
                               hintStyle: GoogleFonts.robotoCondensed(
                                   color: Colors.white),
                               contentPadding: const EdgeInsets.symmetric(
@@ -140,7 +219,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                 height: 35,
                                 child: GestureDetector(
                                   onTap: () {
-                                    _selectStartDate(context);
+                                    selectStartDate(context);
                                   },
                                   child: const Icon(
                                     Icons.calendar_today,
@@ -151,52 +230,78 @@ class _DrawerCustomState extends State<DrawerCustom> {
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
                               ),
                               filled: true,
-                              fillColor: Colors.grey,
+                              fillColor:
+                                  const Color(0xFF3B3B3B).withOpacity(0.5),
                             ),
-                            onTap: () => _selectStartDate(context),
+                            style: const TextStyle(color: Colors.white),
+                            onTap: () => selectStartDate(context),
                           ),
-                          TextField(
-                            controller: _endDateController,
-                            readOnly:
-                                true, // Chỉ cho phép chọn ngày qua DatePicker
-                            decoration: InputDecoration(
-                              hintText: '  Ngày kết thúc',
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 2, vertical: 3),
-                              hintStyle: GoogleFonts.robotoCondensed(
-                                color: Colors.white,
-                              ),
-                              suffixIcon: IconButton(
-                                icon: const Icon(
-                                  Icons.calendar_today,
-                                  size: 20,
-                                ),
-                                color: Colors.white,
-                                onPressed: () => _selectEndDate(context),
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey,
-                            ),
-                            onTap: () => _selectEndDate(
-                                context), // Mở DatePicker khi nhấn vào TextField
-                          ),
-                        ],
-                      ),
+                        ),
+                        // const SizedBox(
+                        //   height: 5,
+                        // ),
+                        // Container(
+                        //   width: double.infinity,
+                        //   height: 40,
+                        //   decoration: BoxDecoration(
+                        //     borderRadius: BorderRadius.circular(6),
+                        //     color: const Color(0xFF3B3B3B).withOpacity(0.5),
+                        //   ),
+                        //   child: TextField(
+                        //     controller: endDateController,
+                        //     readOnly: true,
+                        //     decoration: InputDecoration(
+                        //       hintText: '  Ngày kết thúc',
+                        //       contentPadding: const EdgeInsets.symmetric(
+                        //           horizontal: 2, vertical: 3),
+                        //       hintStyle: GoogleFonts.robotoCondensed(
+                        //         color: Colors.white,
+                        //       ),
+                        //       suffixIcon: IconButton(
+                        //         icon: const Icon(
+                        //           Icons.calendar_today,
+                        //           size: 20,
+                        //         ),
+                        //         color: Colors.white,
+                        //         onPressed: () => selectEndDate(context),
+                        //       ),
+                        //       border: OutlineInputBorder(
+                        //         borderRadius: BorderRadius.circular(10),
+                        //         borderSide: BorderSide.none,
+                        //       ),
+                        //       filled: true,
+                        //       fillColor:
+                        //           const Color(0xFF3B3B3B).withOpacity(0.5),
+                        //     ),
+                        //     onTap: () => selectEndDate(context),
+                        //   ),
+                        // ),
+                      ],
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
+                          const CircleAvatar(
+                            radius: 10,
+                            backgroundColor: Colors.grey,
+                            child: Icon(
+                              Icons.history,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(
+                            width: 5,
+                          ),
                           Text(
-                            'Lịch sử chat',
+                            'Lịch sử',
                             style: GoogleFonts.robotoCondensed(
-                                color: Colors.white),
+                                fontSize: 16, color: Colors.white),
                           ),
                         ],
                       ),
@@ -215,20 +320,23 @@ class _DrawerCustomState extends State<DrawerCustom> {
                           return const Center(child: Text('No data available'));
                         } else {
                           final List<Map<String, String>> contents =
-                              snapshot.data!.data!.map((history) {
+                              (snapshot.data?.data ?? []).map((history) {
                             final chatbotHistoryId =
-                                (history.chatbotHistoryId ?? 'Không có ID')
-                                    .toString();
-                            final userMessage = history.messages?.lastWhere(
-                              (msg) => msg.messageType != 'bot',
-                              orElse: () =>
-                                  Messages(content: 'Không có dữ liệu'),
-                            );
-                            final content =
-                                (userMessage?.content ?? 'Không có dữ liệu')
-                                    .toString();
+                                history.chatbotHistoryId?.toString() ??
+                                    'Không có ID';
 
-                            // Trả về một Map với cả key và value là String
+                            final userMessage = (history.messages?.isNotEmpty ??
+                                    false)
+                                ? history.messages!.lastWhere(
+                                    (msg) => msg.messageType != 'bot',
+                                    orElse: () =>
+                                        Messages(content: 'Không có dữ liệu'),
+                                  )
+                                : Messages(content: 'Không có dữ liệu');
+
+                            final content =
+                                userMessage.content ?? 'Không có dữ liệu';
+
                             return {
                               'key': chatbotHistoryId,
                               'value': content,
@@ -240,24 +348,22 @@ class _DrawerCustomState extends State<DrawerCustom> {
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: contents.length,
                             itemBuilder: (context, index) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8.0, vertical: 1),
+                              return Container(
+                                width: double.infinity,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  color:
+                                      const Color(0xFF3B3B3B).withOpacity(0.5),
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 1),
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 8.0, vertical: 0),
                                   tileColor: Colors.grey,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  leading: const CircleAvatar(
-                                    radius: 15,
-                                    backgroundColor: Colors.grey,
-                                    child: Icon(
-                                      Icons.history,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
                                   ),
                                   title: Text(
                                     contents[index]['value'] ?? '',
@@ -269,10 +375,42 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  trailing: const Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white,
-                                    size: 13.0,
+                                  trailing: GestureDetector(
+                                    onTap: () {
+                                      // Show dialog when the 'more' icon is tapped
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text('Xác nhậc xóa'),
+                                            content: const Text(
+                                                'Bạn có chắc chắn muốn xóa không?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () {
+                                                  Navigator.of(context)
+                                                      .pop(); // Close the dialog
+                                                },
+                                                child: const Text('Không'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  // deleteChatHistory(context);
+                                                  Navigator.of(context)
+                                                      .pop(); // Close the dialog
+                                                },
+                                                child: const Text('Chấp nhận'),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                    child: const Icon(
+                                      Icons.more_horiz,
+                                      color: Colors.white,
+                                      size: 20.0,
+                                    ),
                                   ),
                                   onTap: () {
                                     _loadChatHistoryAndNavigate(
@@ -290,8 +428,8 @@ class _DrawerCustomState extends State<DrawerCustom> {
                 ),
               ),
             ),
-            _buildColorSelector(context),
             _buildUserAccount(),
+            // _buildColorSelector(context),
           ],
         ),
       ),
@@ -328,6 +466,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
     required VoidCallback onTap,
   }) {
     return ListTile(
+      contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: Colors.white),
       title: Text(title,
           style:
@@ -354,52 +493,12 @@ class _DrawerCustomState extends State<DrawerCustom> {
     );
   }
 
-  Widget _buildColorSelector(BuildContext context) {
-    final colors = [
-      const Color(0xff042E4D),
-      const Color(0xff004225),
-      const Color(0xff6b240c)
-    ];
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: [
-          Text('Màu sắc:',
-              style: GoogleFonts.robotoCondensed(
-                  fontSize: 15, color: Colors.white)),
-          const SizedBox(width: 5),
-          Wrap(
-            children: colors.map((color) {
-              return GestureDetector(
-                onTap: () => Provider.of<Providercolor>(context, listen: false)
-                    .changeColor(color),
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1),
-                  ),
-                  child: Provider.of<Providercolor>(context).selectedColor ==
-                          color
-                      ? const Icon(Icons.check, color: Colors.white, size: 16)
-                      : const SizedBox.shrink(),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
 // _buildUserAccount widget
   Widget _buildUserAccount() {
-    final _loginService = LoginService();
+    final loginService = LoginService();
     return FutureBuilder<Map<String, String>?>(
       future:
-          _loginService.getAccountFullNameAndUsername(), // Fetch the user data
+          loginService.getAccountFullNameAndUsername(), // Fetch the user data
       builder: (context, snapshot) {
         // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -449,11 +548,12 @@ class _DrawerCustomState extends State<DrawerCustom> {
               borderRadius: BorderRadius.circular(100),
               child: Image.asset(
                 'resources/logo_smart.png',
-                height: 40,
-                width: 40,
+                height: 30,
+                width: 30,
                 fit: BoxFit.cover,
               ),
             ),
+            contentPadding: EdgeInsets.zero,
             title: GestureDetector(
               onTap: () {
                 widget.onItemSelected(2);
@@ -465,7 +565,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                       Text(
                         'Error loading user info', // Display error message
                         style: GoogleFonts.robotoCondensed(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.white),
                       ),
@@ -485,19 +585,19 @@ class _DrawerCustomState extends State<DrawerCustom> {
         }
         // Data successfully fetched
         else if (snapshot.hasData && snapshot.data != null) {
-          final userName = snapshot.data?['username'] ?? 'Không có tên';
+          final userName = snapshot.data?['full_name'] ?? 'Không có tên';
           final email = snapshot.data?['email'] ?? 'Không có email';
 
           return ListTile(
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(100),
+            leading: CircleAvatar(
               child: Image.asset(
                 'resources/logo_smart.png',
-                height: 40,
-                width: 40,
+                height: 30,
+                width: 30,
                 fit: BoxFit.cover,
               ),
             ),
+            contentPadding: EdgeInsets.zero,
             title: GestureDetector(
               onTap: () {
                 widget.onItemSelected(2);
@@ -508,9 +608,9 @@ class _DrawerCustomState extends State<DrawerCustom> {
                   Row(
                     children: [
                       Text(
-                        userName, // Display fetched username
+                        userName,
                         style: GoogleFonts.robotoCondensed(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.white),
                       ),
@@ -524,7 +624,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                     email, // Display fetched email
                     style: GoogleFonts.robotoCondensed(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontStyle: FontStyle.italic),
                   ),
                 ],

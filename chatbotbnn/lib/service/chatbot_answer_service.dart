@@ -2,19 +2,20 @@ import 'dart:convert';
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/service/app_config.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 Future<ChatbotAnswerModel?> fetchApiResponse(
     BodyChatbotAnswer chatbotRequest) async {
   // Corrected API URL (missing closing curly bracket in the URL string)
-  final String apiUrl = '${ApiConfig.baseUrl}chatbot-answer';
+  final String apiUrl = '${ApiConfig.baseUrl}chatbot-statistic-answer';
 
   try {
     // Encode the request body using the toJson() method from BodyChatbotAnswer
     final requestBody = json.encode(chatbotRequest.toJson());
 
-    // Log the request body for debugging
-    print('Request Body: $requestBody');
+    // // Log the request body for debugging
+    // debugPrint('Request Body: $requestBody', wrapWidth: 1024);
 
     // Get headers from the ApiConfig
     final Map<String, String> headers = await ApiConfig.getHeaders();
@@ -30,7 +31,7 @@ Future<ChatbotAnswerModel?> fetchApiResponse(
     if (response.statusCode == 200) {
       // Decode and log the response body for debugging
       final Map<String, dynamic> jsonResponse = json.decode(response.body);
-
+      print(response.statusCode);
       // Parse and return the response model
       return ChatbotAnswerModel.fromJson(jsonResponse);
     } else {

@@ -2,9 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
   static const String domain =
-      'https://bnn.aiacademy.edu.vn'; // Cố định tên miền
+      'https://mard.aiacademy.edu.vn'; // Cố định tên miền
 
-  static const String _defaultDomain = 'https://bnn.aiacademy.edu.vn';
+  static const String _defaultDomain = 'https://mard.aiacademy.edu.vn';
 
   static String get baseUrlBasic {
     return '$domain/api/';
@@ -12,6 +12,10 @@ class ApiConfig {
 
   static String get baseUrl {
     return '$domain/api/chatbot/';
+  }
+
+  static String get baseUrlHistory {
+    return '$domain/api/chatbot-history/';
   }
 
   static Future<String?> getToken() async {

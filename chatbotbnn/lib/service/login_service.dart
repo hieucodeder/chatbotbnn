@@ -26,7 +26,7 @@ class LoginService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userid', account.userId!);
-        await prefs.setString('username', account.username!);
+        await prefs.setString('full_name', account.fullName!);
         await prefs.setString('email', account.email!);
         await prefs.setString('token', account.token!);
 
@@ -47,7 +47,7 @@ class LoginService {
     final prefs = await SharedPreferences.getInstance();
 
     final userId = prefs.getString('userid');
-    final userName = prefs.getString('username');
+    final userName = prefs.getString('full_name');
     final email = prefs.getString('email');
 
     if (userId == null || userName == null && email == null) {
@@ -55,7 +55,7 @@ class LoginService {
     }
 
     return {
-      'username': userName ?? '', // Return default text if null
+      'full_name': userName ?? '', // Return default text if null
       'email': email ?? 'Không có email', // Return default text if null
     };
   }

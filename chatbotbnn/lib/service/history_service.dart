@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/history_model.dart';
 
-Future<HistoryModel> fetchChatHistory(String historyId) async {
+Future<List<String>> fetchChatHistory(String historyId) async {
   final String apiUrl =
       '${ApiConfig.baseUrlBasic}chatbot-history/get-chatbot-messages';
 
@@ -25,8 +25,23 @@ Future<HistoryModel> fetchChatHistory(String historyId) async {
   if (response.statusCode == 200) {
     // If server returns a 200 OK response, parse the JSON
     final Map<String, dynamic> responseData = jsonDecode(response.body);
-    return HistoryModel.fromJson(
-        responseData); // Map the response to HistoryModel
+    final historyModel = HistoryModel.fromJson(responseData);
+
+    // Process each message in data and return a List<String>
+    return historyModel.data
+            ?.map((e) {
+              if (e.messageType == 'answer') {
+                // If the message type is 'answer', parse the JSON content
+                final contentJson = jsonDecode(e.content ?? '{}');
+                return contentJson['message'] ?? '';
+              } else {
+                // If it's a 'question', return the content directly
+                return e.content ?? '';
+              }
+            })
+            .toList()
+            .cast<String>() ??
+        []; // Cast to List<String>
   } else {
     // If the server returns an error, throw an exception
     throw Exception('Failed to load chat history');

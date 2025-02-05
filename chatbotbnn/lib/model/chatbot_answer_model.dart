@@ -1,129 +1,95 @@
 class ChatbotAnswerModel {
-  final String message;
-  final bool results;
-  final ChatbotData data;
+  String? message;
+  bool? results;
+  ChatbotData? data;
 
-  ChatbotAnswerModel({
-    required this.message,
-    required this.results,
-    required this.data,
-  });
+  ChatbotAnswerModel({this.message, this.results, this.data});
 
-  factory ChatbotAnswerModel.fromJson(Map<String, dynamic> json) {
-    return ChatbotAnswerModel(
-      message: json['message'] ?? '',
-      results: json['results'] ?? false,
-      data: ChatbotData.fromJson(json['data']),
-    );
+  ChatbotAnswerModel.fromJson(Map<String, dynamic> json) {
+    message = json['message'];
+    results = json['results'];
+    data = json['data'] != null ? new ChatbotData.fromJson(json['data']) : null;
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'message': message,
-      'results': results,
-      'data': data.toJson(),
-    };
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['message'] = message;
+    data['results'] = results;
+    if (this.data != null) {
+      data['data'] = this.data!.toJson();
+    }
+    return data;
   }
 }
 
 class ChatbotData {
-  final List<ChatHistory> history;
-  final List<dynamic> intentQueue;
-  final List<Slot> slots;
-  final String message;
-  final List<String> images;
+  String? query;
+  String? response;
+  int? type;
+  String? message;
+  List<ImageStatistic>? images;
+  List<Map<String, dynamic>>? table;
 
-  ChatbotData({
-    required this.history,
-    required this.intentQueue,
-    required this.slots,
-    required this.message,
-    required this.images,
-  });
+  ChatbotData(
+      {this.query,
+      this.response,
+      this.type,
+      this.message,
+      this.images,
+      this.table});
 
-  factory ChatbotData.fromJson(Map<String, dynamic> json) {
-    return ChatbotData(
-      history: (json['history'] as List<dynamic>?)
-              ?.map((item) => ChatHistory.fromJson(item))
-              .toList() ??
-          [],
-      intentQueue: json['intentqueue'] ?? [],
-      slots: (json['slots'] as List<dynamic>?)
-              ?.map((item) => Slot.fromJson(item))
-              .toList() ??
-          [],
-      message: json['message'] ?? '',
-      images: List<String>.from(json['images'] ?? []),
-    );
+  ChatbotData.fromJson(Map<String, dynamic> json) {
+    query = json['query'];
+    response = json['response'];
+    type = json['type'];
+    message = json['message'];
+    if (json['images'] != null) {
+      images = <ImageStatistic>[];
+      json['images'].forEach((v) {
+        images!.add(new ImageStatistic.fromJson(v));
+      });
+    }
+    if (json['table'] != null) {
+      table = List<Map<String, dynamic>>.from(json['table']);
+    }
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'history': history.map((item) => item.toJson()).toList(),
-      'intentqueue': intentQueue,
-      'slots': slots.map((item) => item.toJson()).toList(),
-      'message': message,
-      'images': images,
-    };
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['query'] = query;
+    data['response'] = response;
+    data['type'] = type;
+    data['message'] = message;
+    if (images != null) {
+      data['images'] = images!.map((v) => v.toJson()).toList();
+    }
+    if (table != null) {
+      data['table'] = table;
+    }
+    return data;
   }
 }
 
-class ChatHistory {
-  final int turn;
-  final String query;
-  final String answer;
-  final String intents;
+class ImageStatistic {
+  String? path;
+  String? description;
 
-  ChatHistory({
-    required this.turn,
-    required this.query,
-    required this.answer,
-    required this.intents,
-  });
+  ImageStatistic({this.path, this.description});
 
-  factory ChatHistory.fromJson(Map<String, dynamic> json) {
-    return ChatHistory(
-      turn: json['turn'] ?? 0,
-      query: json['query'] ?? '',
-      answer: json['answer'] ?? '',
-      intents: json['intents'] ?? '',
-    );
+  ImageStatistic.fromJson(Map<String, dynamic> json) {
+    path = json['path'];
+    description = json['description'];
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'turn': turn,
-      'query': query,
-      'answer': answer,
-      'intents': intents,
+      'path': path,
+      'description': description,
     };
   }
-}
 
-class Slot {
-  final String id;
-  final String intentSlots;
-  final Map<String, String> slotDetails;
-
-  Slot({
-    required this.id,
-    required this.intentSlots,
-    required this.slotDetails,
-  });
-
-  factory Slot.fromJson(Map<String, dynamic> json) {
-    return Slot(
-      id: json['id'] ?? '',
-      intentSlots: json['intent_slots'] ?? '',
-      slotDetails: Map<String, String>.from(json['slot_details'] ?? {}),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'intent_slots': intentSlots,
-      'slot_details': slotDetails,
-    };
+  @override
+  String toString() {
+    return 'ImageStatistic(path: $path, description: $description)';
   }
 }

@@ -8,6 +8,7 @@ import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppScreen extends StatefulWidget {
   const AppScreen({super.key});
@@ -47,12 +48,19 @@ class _AppScreenState extends State<AppScreen> {
     }
   }
 
-  String _getAppBarTitle(BuildContext context, int index) {
+  Future<String?> getChatbotName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('chatbot_name');
+  }
+
+  Future<String> _getAppBarTitle(BuildContext context, int index) async {
     switch (index) {
       case 0:
-        return 'TRỢ LÝ AI';
+        String? chatbotName = await getChatbotName();
+
+        return chatbotName ?? 'TRỢ LÝ AI'; // Nếu không có, hiển thị mặc định
       case 1:
-        return 'DANH TRỢ LÝ AI';
+        return 'DANH SÁCH TRỢ LÝ AI';
       case 2:
         return 'CÀI ĐẶT';
 
@@ -85,13 +93,24 @@ class _AppScreenState extends State<AppScreen> {
         bodyHistory: bodyHistory,
       ),
       appBar: AppBar(
-        title: Text(
-          _getAppBarTitle(context, currentIndex),
-          style: GoogleFonts.robotoCondensed(
-            fontSize: 17,
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+        title: FutureBuilder<String>(
+          future: _getAppBarTitle(context, currentIndex),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Text('Đang tải...');
+            } else if (snapshot.hasError) {
+              return const Text('Lỗi tải tên');
+            } else {
+              return Text(
+                  (snapshot.data ?? 'TRỢ LÝ AI')
+                      .toUpperCase(), // ép kiểu thành chứ hoa
+                  style: GoogleFonts.robotoCondensed(
+                    fontSize: 17,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ));
+            }
+          },
         ),
         actions: [
           Padding(

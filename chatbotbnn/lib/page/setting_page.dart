@@ -26,15 +26,60 @@ class _SettingPageState extends State<SettingPage> {
     selectedLocale = languages.first['locale']; // Đặt mặc định
   }
 
+  Widget _buildColorSelector(BuildContext context) {
+    final colors = [
+      const Color(0xff042E4D),
+      const Color(0xff004225),
+      const Color(0xff6b240c),
+    ];
+
+    return Consumer<Providercolor>(
+      builder: (context, providerColor, child) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: colors.map((color) {
+            final isSelected = providerColor.selectedColor == color;
+
+            return GestureDetector(
+              onTap: () => providerColor.changeColor(color),
+              child: Container(
+                margin: const EdgeInsets.all(6),
+                width: 23,
+                height: 23,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? Colors.white : Colors.transparent,
+                    width: 2,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                              color: color.withOpacity(0.5), blurRadius: 8)
+                        ]
+                      : [],
+                ),
+                child: Center(
+                  child: isSelected
+                      ? const Icon(Icons.check, color: Colors.white, size: 18)
+                      : const SizedBox(height: 23),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Provider.of<NavigationProvider>(context);
-    // final localization = AppLocalizations.of(context);
-    // final currentLocale = context.watch<LocaleProvider>().locale;
     return Container(
       width: double.infinity,
       height: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       color: Colors.white,
       child: SingleChildScrollView(
         child: Column(
@@ -46,7 +91,7 @@ class _SettingPageState extends State<SettingPage> {
                   Icons.account_box,
                   size: 24,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
                     navigationProvider.setCurrentIndex(4);
@@ -55,14 +100,14 @@ class _SettingPageState extends State<SettingPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(
                   Icons.search,
                   size: 24,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
                     navigationProvider.setCurrentIndex(5);
@@ -71,7 +116,24 @@ class _SettingPageState extends State<SettingPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.color_lens,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    navigationProvider.setCurrentIndex(5);
+                  },
+                  child: Text('Màu sắc:', style: styleText),
+                ),
+                _buildColorSelector(context),
+              ],
+            ),
+            const SizedBox(height: 8),
             const Divider(color: Colors.black),
             Row(
               children: [

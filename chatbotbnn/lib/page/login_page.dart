@@ -155,7 +155,7 @@ class _LoginPageState extends State<LoginPage> {
                               Row(
                                 children: [
                                   Text(
-                                    'Số điện thoại',
+                                    'Tài khoản',
                                     style: GoogleFonts.robotoCondensed(
                                         fontSize: 14,
                                         color: const Color(0xFF064265),
@@ -178,7 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                                   TextFormField(
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Vui lòng nhập số điện thoại';
+                                        return 'Vui lòng nhập tài khoản';
                                       }
                                       return null;
                                     },
@@ -191,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      hintText: 'Số điện thoại',
+                                      hintText: 'Tài khoản',
                                       hintStyle: GoogleFonts.robotoCondensed(
                                           fontSize: 14,
                                           color: const Color(0xFF064265)),
