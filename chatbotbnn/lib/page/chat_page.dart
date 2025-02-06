@@ -9,6 +9,7 @@ import 'package:chatbotbnn/service/history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,7 +34,6 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    // _loadInitialMessageAndHistory(widget.historyId);
     _loadInitialMessage();
   }
 
@@ -41,18 +41,15 @@ class _ChatPageState extends State<ChatPage> {
     try {
       List<String> contents = await fetchChatHistory(historyId);
       setState(() {
-        // Adding the fetched messages to the chat
         for (var content in contents) {
           _messages.insert(0, {
             'type': 'bot',
             'text': content,
-            'image': ['resources/logo_smart.png'],
+            'image': 'resources/logo_smart.png',
           });
         }
       });
-    } catch (e) {
-      print("Error fetching chat history: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> _loadInitialMessage() async {
@@ -61,7 +58,6 @@ class _ChatPageState extends State<ChatPage> {
 
     if (chatbotCode != null) {
       final chatbotData = await fetchGetCodeModel(chatbotCode);
-      print(chatbotCode);
       if (chatbotData != null) {
         setState(() {
           _initialMessage = chatbotData.initialMessages;
@@ -71,23 +67,16 @@ class _ChatPageState extends State<ChatPage> {
           'text': _initialMessage ?? 'Lỗi',
           'image': 'resources/logo_smart.png',
         });
-      } else {
-        print("Failed to load chatbot data.");
-      }
-    } else {
-      print("No chatbot code found in provider.");
-    }
+      } else {}
+    } else {}
   }
 
   void _sendMessage() async {
-    // Lấy chatbot code từ Provider
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
     final historyId = Provider.of<NavigationProvider>(context, listen: false)
         .currentIndexhistoryId;
-    print(historyId);
     if (chatbotCode == null) {
-      print("Chatbot code is null");
       return;
     }
 
@@ -102,7 +91,6 @@ class _ChatPageState extends State<ChatPage> {
         prefs.getString('chatbot_name') ?? 'Default Chatbot Name';
 
     if (userId == null) {
-      print("Error: User ID not found");
       return;
     }
 
@@ -113,7 +101,6 @@ class _ChatPageState extends State<ChatPage> {
 
     _controller.clear();
 
-    // Tạo yêu cầu đến API
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
       chatbotCode: chatbotCode,
       chatbotName: chatbotName,
@@ -123,7 +110,7 @@ class _ChatPageState extends State<ChatPage> {
       fallbackResponse: "Xin lỗi, tôi chưa có câu trả lời!",
       genModel: "gpt-4o-mini",
       history: [],
-      historyId: historyId ?? '',
+      historyId: historyId,
       intentQueue: [],
       isNewSession: true,
       language: "Vietnamese",
@@ -143,19 +130,15 @@ class _ChatPageState extends State<ChatPage> {
       userIndustry: "",
     );
 
-    print("Sending request to API...");
-
     try {
       ChatbotAnswerModel? response = await fetchApiResponse(chatbotRequest);
 
-      // Cập nhật giao diện với phản hồi từ API
       setState(() {
         _isLoading = false;
         if (response != null) {
           List<ImageStatistic>? images = response.data?.images!;
           List<Map<String, dynamic>>? table = response.data?.table;
 
-          // Lấy danh sách cột từ khóa của phần tử đầu tiên
           _messages.add({
             'type': 'bot',
             'text': response.data!.message,
@@ -164,7 +147,6 @@ class _ChatPageState extends State<ChatPage> {
             'imageStatistic': images,
           });
         } else {
-          print("API response is null, using default response.");
           _messages.add({
             'type': 'bot',
             'text': 'Bot không thể trả lời, vui lòng thử lại.',
@@ -173,8 +155,6 @@ class _ChatPageState extends State<ChatPage> {
         }
       });
     } catch (e) {
-      // Xử lý lỗi khi gọi API
-      print("Error fetching API response: $e");
       setState(() {
         _isLoading = false;
         _messages.add({
@@ -185,22 +165,22 @@ class _ChatPageState extends State<ChatPage> {
         });
       });
     }
-
-    print("Input field cleared");
   }
 
   @override
   Widget build(BuildContext context) {
     final selectColors = Provider.of<Providercolor>(context).selectedColor;
     final textChatBot =
-        GoogleFonts.robotoCondensed(fontSize: 15, color: Colors.black);
+        GoogleFonts.robotoCondensed(fontSize: 14, color: Colors.black);
+    final textChatbotTable = GoogleFonts.robotoCondensed(
+        fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue);
     return Container(
       constraints: const BoxConstraints.expand(),
       color: Colors.white,
       child: Column(
         children: [
-          Text(Provider.of<NavigationProvider>(context, listen: false)
-              .currentIndexhistoryId),
+          // Text(Provider.of<NavigationProvider>(context, listen: false)
+          //     .currentIndexhistoryId),
           Expanded(
             child: ListView.builder(
               itemCount: _messages.length,
@@ -208,27 +188,13 @@ class _ChatPageState extends State<ChatPage> {
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
               itemBuilder: (context, index) {
                 final message = _messages[_messages.length - 1 - index];
-                print(message);
 
-                // Tùy chỉnh căn chỉnh tin nhắn
                 final isUser = message['type'] == 'user';
                 final String? imageUrl = message['image'];
                 List<Map<String, dynamic>>? table = message['table'];
-                List<String> _columns = [];
-                if (table != null && table!.isNotEmpty) {
-                  _columns = table!.first.keys.toList();
-                  // print(message['table']!.asMap().entries.map((entry) {
-                  //   int index = entry.key + 1; // Đánh số thứ tự
-                  //   Map<String, dynamic> row = entry.value;
-                  //   print(row);
-
-                  //   return DataRow(cells: [
-                  //     DataCell(Text(index.toString())), // Cột STT
-                  //     ...columns
-                  //         .map((col) => DataCell(Text(row[col].toString())))
-                  //         .toList(),
-                  //   ]);
-                  // }).toList());
+                List<String> columns = [];
+                if (table != null && table.isNotEmpty) {
+                  columns = table.first.keys.toList();
                 }
 
                 return Row(
@@ -237,47 +203,54 @@ class _ChatPageState extends State<ChatPage> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (!isUser && message.containsKey('image'))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: CircleAvatar(
-                          backgroundImage: imageUrl!.startsWith('http')
-                              ? NetworkImage(imageUrl)
-                              : AssetImage(imageUrl) as ImageProvider,
-                          radius: 20,
-                          backgroundColor: Colors.transparent,
-                        ),
+                      CircleAvatar(
+                        backgroundImage: imageUrl!.startsWith('http')
+                            ? NetworkImage(imageUrl)
+                            : AssetImage(imageUrl) as ImageProvider,
+                        radius: 20,
+                        backgroundColor: Colors.transparent,
                       ),
                     Flexible(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 5),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isUser ? selectColors : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
+                      child: Column(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 5),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isUser ? selectColors : Colors.grey[300],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
                               message['text']!,
                               style: GoogleFonts.robotoCondensed(
-                                fontSize: 14,
+                                fontSize: 15,
                                 color: isUser ? Colors.white : Colors.black,
                               ),
                             ),
-                            if (table != null &&
-                                table is List &&
-                                (table as List<Map<String, dynamic>>)
-                                    .isNotEmpty)
-                              SingleChildScrollView(
+                          ),
+                          if (table != null &&
+                              table is List &&
+                              (table as List<Map<String, dynamic>>).isNotEmpty)
+                            SingleChildScrollView(
+                              scrollDirection: Axis.vertical,
+                              child: SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: DataTable(
                                   columns: [
-                                    const DataColumn(
-                                        label: Text("STT")), // Cột số thứ tự
-                                    ..._columns
-                                        .map((col) =>
-                                            DataColumn(label: Text(col)))
-                                        .toList(),
+                                    DataColumn(
+                                      label: Text(
+                                        "STT",
+                                        style: textChatbotTable,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    ...columns.map((col) => DataColumn(
+                                          label: Text(
+                                            col,
+                                            style: textChatbotTable,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ))
                                   ],
                                   rows: table!
                                       .asMap()
@@ -285,61 +258,136 @@ class _ChatPageState extends State<ChatPage> {
                                       .map<DataRow>((entry) {
                                     int index = entry.key + 1; // Đánh số thứ tự
                                     Map<String, dynamic> row = entry.value;
-                                    return DataRow(cells: [
-                                      DataCell(
-                                          Text(index.toString())), // Cột STT
-                                      ..._columns.map((col) {
-                                        var value = row[col];
-                                        String displayValue;
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          SizedBox(
+                                            width: 40,
+                                            child: Center(
+                                              child: Text(
+                                                index.toString(),
+                                                style: textChatBot,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        ...columns.map((col) {
+                                          var value = row[col];
+                                          String displayValue;
 
-                                        // Kiểm tra nếu giá trị là số thì làm tròn đến 2 chữ số thập phân
-                                        if (value is double) {
-                                          displayValue =
-                                              value.toStringAsFixed(2);
-                                        } else {
-                                          displayValue = value.toString();
-                                        }
-                                        return DataCell(Text(displayValue));
-                                      }).toList(),
-                                    ]);
+                                          // Kiểm tra nếu giá trị là số thì làm tròn đến 2 chữ số thập phân
+                                          if (value is double) {
+                                            displayValue =
+                                                value.toStringAsFixed(2);
+                                          } else {
+                                            displayValue = value.toString();
+                                          }
+
+                                          return DataCell(
+                                            Center(
+                                              child: Text(
+                                                displayValue,
+                                                style: textChatBot,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ],
+                                    );
                                   }).toList(),
                                 ),
                               ),
-                            if (message['imageStatistic'] != null &&
-                                (message['imageStatistic']
-                                        as List<ImageStatistic>)
-                                    .isNotEmpty)
-                              ...(message['imageStatistic']
+                            ),
+                          if (message['imageStatistic'] != null &&
+                              (message['imageStatistic']
                                       as List<ImageStatistic>)
-                                  .map<Widget>((image) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (image.path != null)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16.0),
-                                        child: Image.network(
-                                            image.path!), // Hiển thị ảnh
-                                      )
-                                    else
-                                      const Icon(Icons.image,
-                                          size:
-                                              50), // Icon thay thế nếu không có ảnh
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4.0),
-                                      child: Text(
-                                        image.description ?? "Không có mô tả",
-                                        style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w400),
+                                  .isNotEmpty)
+                            ...(message['imageStatistic']
+                                    as List<ImageStatistic>)
+                                .map<Widget>((image) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (image.path != null)
+                                    GestureDetector(
+                                      onTap: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => Dialog(
+                                            backgroundColor: Colors.transparent,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                    0.9,
+                                                height: MediaQuery.of(context)
+                                                        .size
+                                                        .height *
+                                                    0.5,
+                                                child: PhotoView(
+                                                  imageProvider:
+                                                      NetworkImage(image.path!),
+                                                  backgroundDecoration:
+                                                      const BoxDecoration(
+                                                          color: Colors.white),
+                                                  minScale:
+                                                      PhotoViewComputedScale
+                                                          .contained,
+                                                  maxScale:
+                                                      PhotoViewComputedScale
+                                                              .covered *
+                                                          2.0,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 5),
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: isUser
+                                              ? selectColors
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              width: 2,
+                                              color:
+                                                  Colors.grey.withOpacity(0.3)),
+                                        ),
+                                        child: Image.network(image.path!),
                                       ),
+                                    )
+                                  else
+                                    const Icon(Icons.image,
+                                        size:
+                                            50), // Icon thay thế nếu không có ảnh
+                                  Container(
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 5),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: isUser
+                                          ? selectColors
+                                          : Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                  ],
-                                );
-                              }).toList(),
-                          ],
-                        ),
+                                    child: Text(
+                                        image.description ?? "Không có mô tả",
+                                        style: textChatBot),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                        ],
                       ),
                     ),
                   ],

@@ -438,7 +438,7 @@ void showLoginSnackbar(BuildContext context) {
   Future.delayed(const Duration(seconds: 1), () {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const AppScreen()),
+      MaterialPageRoute(builder: (context) =>  const AppScreen()),
     );
   });
 }

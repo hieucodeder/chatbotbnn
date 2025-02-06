@@ -3,6 +3,7 @@ import 'package:chatbotbnn/navigation/drawer.dart';
 import 'package:chatbotbnn/page/chat_page.dart';
 import 'package:chatbotbnn/page/chatbot_page.dart';
 import 'package:chatbotbnn/page/setting_page.dart';
+import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:flutter/material.dart';
@@ -116,7 +117,10 @@ class _AppScreenState extends State<AppScreen> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  // Provider.of<ChatProvider>(context)
+                  //     .loadInitialMessage(context);
+                },
                 icon: const Icon(Icons.drive_file_rename_outline_sharp)),
           )
         ],

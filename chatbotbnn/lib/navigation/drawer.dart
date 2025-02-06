@@ -28,6 +28,9 @@ class DrawerCustom extends StatefulWidget {
 
 class _DrawerCustomState extends State<DrawerCustom> {
   late Future<HistoryAllModel> _historyAllModel;
+  TextEditingController startDateController = TextEditingController();
+  TextEditingController endDateController = TextEditingController();
+  String? startDate, endDate;
 
   @override
   void initState() {
@@ -44,7 +47,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
     setState(() {
-      _historyAllModel = fetchChatHistoryAll(chatbotCode, null, null);
+      _historyAllModel = fetchChatHistoryAll(chatbotCode, startDate, endDate);
     });
   }
 
@@ -57,70 +60,128 @@ class _DrawerCustomState extends State<DrawerCustom> {
     } catch (e) {}
   }
 
-  Future<void> deleteChatHistory(BuildContext context) async {
+  Future<void> deleteChatHistory(
+      BuildContext context, String? historyId) async {
     try {
-      if (!mounted) return;
+      // Nếu historyId null, lấy từ Provider
+      String? historyIdString = historyId ??
+          Provider.of<NavigationProvider>(context, listen: false)
+              .currentIndexhistoryId;
 
-      final historyId = Provider.of<NavigationProvider>(context, listen: false)
-          .currentIndexhistoryId;
-
-      final DeleteModel result = await fetchChatHistoryDelete(historyId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.message)),
-        );
+      // Kiểm tra historyIdString có hợp lệ không
+      if (historyIdString == null || historyIdString.isEmpty) {
+        print('Lỗi: historyId không hợp lệ');
+        return;
       }
+
+      // Chuyển đổi `String` sang `int`
+      int? historyIdInt = int.tryParse(historyIdString);
+      if (historyIdInt == null || historyIdInt <= 0) {
+        print('Lỗi: Không thể chuyển đổi historyId');
+        return;
+      }
+
+      // Hiển thị hộp thoại xác nhận xóa
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Xác nhận xóa'),
+          content:
+              const Text('Bạn có chắc chắn muốn xóa lịch sử chat này không?'),
+          actions: [
+            // Nút "Đóng"
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Đóng'),
+            ),
+            // Nút "Xóa"
+            TextButton(
+              onPressed: () async {
+                try {
+                  // Gọi API xóa lịch sử chat
+                  DeleteModel result =
+                      await fetchChatHistoryDelete(historyIdInt);
+                  print(result.message);
+
+                  Navigator.of(context).pop(); // Đóng hộp thoại
+
+                  // Hiển thị thông báo thành công
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Thông báo'),
+                      content: Text(result.message),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Đóng'),
+                        ),
+                      ],
+                    ),
+                  );
+                } catch (e) {
+                  print('Error: $e');
+                  Navigator.of(context).pop(); // Đóng hộp thoại
+
+                  // Hiển thị thông báo lỗi
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Lỗi'),
+                      content: const Text(
+                          'Có lỗi xảy ra trong quá trình xóa lịch sử.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Đóng'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              child: const Text('Xóa'),
+            ),
+          ],
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
-      }
+      print('Error: $e');
+    }
+  }
+
+  DateTime? selectedStartDate;
+  DateTime? selectedEndDate;
+
+  // Hàm chọn cả ngày bắt đầu và ngày kết thúc cùng một lúc
+  Future<void> selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: selectedStartDate != null && selectedEndDate != null
+          ? DateTimeRange(start: selectedStartDate!, end: selectedEndDate!)
+          : DateTimeRange(
+              start: DateTime.now(),
+              end: DateTime.now().add(Duration(days: 1))),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null &&
+        picked.start != selectedStartDate &&
+        picked.end != selectedEndDate) {
+      setState(() {
+        selectedStartDate = picked.start;
+        selectedEndDate = picked.end;
+        startDateController.text =
+            DateFormat('dd/MM/yyyy').format(picked.start);
+        endDateController.text = DateFormat('dd/MM/yyyy').format(picked.end);
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final selectedColor = Provider.of<Providercolor>(context).selectedColor;
-    TextEditingController startDateController = TextEditingController();
-    TextEditingController endDateController = TextEditingController();
-    DateTime startDate = DateTime.now();
-    DateTime endDate = DateTime.now();
-
-    // Hàm chọn ngày
-    Future<void> selectStartDate(BuildContext context) async {
-      final DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: startDate,
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2101),
-      );
-      if (picked != null && picked != startDate) {
-        setState(() {
-          startDate = picked;
-          startDateController.text =
-              DateFormat('dd/MM/yyyy').format(startDate); // Định dạng ngày
-        });
-      }
-    }
-
-    // Hàm chọn ngày kết thúc
-    Future<void> selectEndDate(BuildContext context) async {
-      final DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: endDate,
-        firstDate: startDate, // Ngày kết thúc không thể nhỏ hơn ngày bắt đầu
-        lastDate: DateTime(2101),
-      );
-      if (picked != null && picked != endDate) {
-        setState(() {
-          endDate = picked;
-          endDateController.text =
-              DateFormat('dd/MM/yyyy').format(endDate); // Định dạng ngày
-        });
-      }
-    }
 
     return Drawer(
       backgroundColor: selectedColor,
@@ -190,7 +251,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                         onTap: () => widget.onItemSelected(1),
                       ),
                     ),
-                    SizedBox(
+                    const SizedBox(
                       height: 5,
                     ),
                     const Divider(
@@ -219,7 +280,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                 height: 35,
                                 child: GestureDetector(
                                   onTap: () {
-                                    selectStartDate(context);
+                                    selectDateRange(context);
                                   },
                                   child: const Icon(
                                     Icons.calendar_today,
@@ -237,48 +298,9 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                   const Color(0xFF3B3B3B).withOpacity(0.5),
                             ),
                             style: const TextStyle(color: Colors.white),
-                            onTap: () => selectStartDate(context),
+                            onTap: () => selectDateRange(context),
                           ),
                         ),
-                        // const SizedBox(
-                        //   height: 5,
-                        // ),
-                        // Container(
-                        //   width: double.infinity,
-                        //   height: 40,
-                        //   decoration: BoxDecoration(
-                        //     borderRadius: BorderRadius.circular(6),
-                        //     color: const Color(0xFF3B3B3B).withOpacity(0.5),
-                        //   ),
-                        //   child: TextField(
-                        //     controller: endDateController,
-                        //     readOnly: true,
-                        //     decoration: InputDecoration(
-                        //       hintText: '  Ngày kết thúc',
-                        //       contentPadding: const EdgeInsets.symmetric(
-                        //           horizontal: 2, vertical: 3),
-                        //       hintStyle: GoogleFonts.robotoCondensed(
-                        //         color: Colors.white,
-                        //       ),
-                        //       suffixIcon: IconButton(
-                        //         icon: const Icon(
-                        //           Icons.calendar_today,
-                        //           size: 20,
-                        //         ),
-                        //         color: Colors.white,
-                        //         onPressed: () => selectEndDate(context),
-                        //       ),
-                        //       border: OutlineInputBorder(
-                        //         borderRadius: BorderRadius.circular(10),
-                        //         borderSide: BorderSide.none,
-                        //       ),
-                        //       filled: true,
-                        //       fillColor:
-                        //           const Color(0xFF3B3B3B).withOpacity(0.5),
-                        //     ),
-                        //     onTap: () => selectEndDate(context),
-                        //   ),
-                        // ),
                       ],
                     ),
                     Padding(
@@ -377,34 +399,8 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                   ),
                                   trailing: GestureDetector(
                                     onTap: () {
-                                      // Show dialog when the 'more' icon is tapped
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: const Text('Xác nhậc xóa'),
-                                            content: const Text(
-                                                'Bạn có chắc chắn muốn xóa không?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.of(context)
-                                                      .pop(); // Close the dialog
-                                                },
-                                                child: const Text('Không'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  // deleteChatHistory(context);
-                                                  Navigator.of(context)
-                                                      .pop(); // Close the dialog
-                                                },
-                                                child: const Text('Chấp nhận'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
+                                      deleteChatHistory(
+                                          context, contents[index]['key']);
                                     },
                                     child: const Icon(
                                       Icons.more_horiz,

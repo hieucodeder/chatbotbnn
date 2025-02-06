@@ -14,7 +14,8 @@ void main() {
       ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ChangeNotifierProvider(create: (_) => ChatbotProvider()),
       ChangeNotifierProvider(create: (_) => ChatbotcolorsProvider()),
-      ChangeNotifierProvider(create: (_) => HistoryidProvider())
+      ChangeNotifierProvider(create: (_) => HistoryidProvider()),
+      ChangeNotifierProvider(create: (_) => ChatbotProvider())
     ],
     child: const MyApp(),
   ));
