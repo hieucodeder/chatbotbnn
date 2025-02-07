@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:chatbotbnn/service/app_config.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/history_model.dart';
@@ -9,7 +11,6 @@ Future<List<String>> fetchChatHistory(String historyId) async {
   final String apiUrl = '${ApiConfig.baseUrlHistory}get-chatbot-messages';
 
   final bodyHistory = BodyHistory(history: historyId);
-
   final body = jsonEncode(bodyHistory.toJson());
   final Map<String, String> headers = await ApiConfig.getHeaders();
 

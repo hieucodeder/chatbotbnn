@@ -4,6 +4,7 @@ import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/delete_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
+import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/delete_service.dart';
@@ -54,10 +55,18 @@ class _DrawerCustomState extends State<DrawerCustom> {
   Future<void> _loadChatHistoryAndNavigate(String? historyId) async {
     try {
       if (historyId != null) {
-        Provider.of<NavigationProvider>(context, listen: false)
-            .setCurrentIndexHistoryId(historyId);
+        Provider.of<HistoryidProvider>(context, listen: false)
+            .setChatbotHistoryId(historyId);
+        print('loadinghistory $historyId');
       } else {}
     } catch (e) {}
+  }
+
+  void _deleteRest() {
+    setState(() {
+      _fetchHistoryAllModel();
+      Navigator.pop(context);
+    });
   }
 
   Future<void> deleteChatHistory(
@@ -65,8 +74,8 @@ class _DrawerCustomState extends State<DrawerCustom> {
     try {
       // Nếu historyId null, lấy từ Provider
       String? historyIdString = historyId ??
-          Provider.of<NavigationProvider>(context, listen: false)
-              .currentIndexhistoryId;
+          Provider.of<HistoryidProvider>(context, listen: false)
+              .chatbotHistoryId;
 
       // Kiểm tra historyIdString có hợp lệ không
       if (historyIdString == null || historyIdString.isEmpty) {
@@ -102,26 +111,24 @@ class _DrawerCustomState extends State<DrawerCustom> {
                   DeleteModel result =
                       await fetchChatHistoryDelete(historyIdInt);
                   print(result.message);
+                  _deleteRest();
 
-                  Navigator.of(context).pop(); // Đóng hộp thoại
-
-                  // Hiển thị thông báo thành công
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
                       title: const Text('Thông báo'),
-                      content: Text(result.message),
+                      content: const Text('Xóa thành công'),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Đóng'),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
                         ),
                       ],
                     ),
                   );
                 } catch (e) {
                   print('Error: $e');
-                  Navigator.of(context).pop(); // Đóng hộp thoại
+                  Navigator.of(context).pop();
 
                   // Hiển thị thông báo lỗi
                   showDialog(

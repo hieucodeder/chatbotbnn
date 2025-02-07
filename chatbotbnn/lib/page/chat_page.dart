@@ -1,10 +1,17 @@
+import 'dart:convert';
+
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
+import 'package:chatbotbnn/model/get_historyid.dart';
+import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
+import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/chatbot_answer_service.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
+import 'package:chatbotbnn/service/get_history_service.dart';
+import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/history_service.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -27,29 +34,23 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
+  List<Map<String, dynamic>> _messages = [];
   String? _initialMessage;
   bool _isLoading = false;
-
+  late HistoryidProvider _historyidProvider;
   @override
   void initState() {
     super.initState();
     _loadInitialMessage();
+    _historyidProvider = Provider.of<HistoryidProvider>(context, listen: false);
+    _historyidProvider.addListener(fetchAndUpdateChatHistory);
   }
 
-  void getChatHistory(String historyId) async {
-    try {
-      List<String> contents = await fetchChatHistory(historyId);
-      setState(() {
-        for (var content in contents) {
-          _messages.insert(0, {
-            'type': 'bot',
-            'text': content,
-            'image': 'resources/logo_smart.png',
-          });
-        }
-      });
-    } catch (e) {}
+  @override
+  void dispose() {
+    // stopPatrolling(context);
+    _historyidProvider.removeListener(fetchAndUpdateChatHistory);
+    super.dispose();
   }
 
   Future<void> _loadInitialMessage() async {
@@ -74,8 +75,8 @@ class _ChatPageState extends State<ChatPage> {
   void _sendMessage() async {
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
-    final historyId = Provider.of<NavigationProvider>(context, listen: false)
-        .currentIndexhistoryId;
+    final historyId =
+        Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
     if (chatbotCode == null) {
       return;
     }
@@ -101,6 +102,8 @@ class _ChatPageState extends State<ChatPage> {
 
     _controller.clear();
 
+    bool isNewSession = historyId.isEmpty;
+
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
       chatbotCode: chatbotCode,
       chatbotName: chatbotName,
@@ -110,9 +113,9 @@ class _ChatPageState extends State<ChatPage> {
       fallbackResponse: "Xin lỗi, tôi chưa có câu trả lời!",
       genModel: "gpt-4o-mini",
       history: [],
-      historyId: historyId,
+      historyId: isNewSession ? "" : historyId,
       intentQueue: [],
-      isNewSession: true,
+      isNewSession: isNewSession,
       language: "Vietnamese",
       platform: "",
       query: userQuery,
@@ -129,6 +132,8 @@ class _ChatPageState extends State<ChatPage> {
       userId: userId,
       userIndustry: "",
     );
+    debugPrint(
+        "📢 Request Body: historyId=${chatbotRequest.historyId}, isNewSession=${chatbotRequest.isNewSession}");
 
     try {
       ChatbotAnswerModel? response = await fetchApiResponse(chatbotRequest);
@@ -146,6 +151,7 @@ class _ChatPageState extends State<ChatPage> {
             'table': table,
             'imageStatistic': images,
           });
+          loadChatHistoryId(context, chatbotCode);
         } else {
           _messages.add({
             'type': 'bot',
@@ -164,6 +170,74 @@ class _ChatPageState extends State<ChatPage> {
           'image': 'resources/logo_smart.png',
         });
       });
+    }
+  }
+
+  void loadChatHistoryId(BuildContext context, String chatbotCode) async {
+    debugPrint("🔍 Starting loadChatHistoryId...");
+
+    try {
+      HistoryAllModel historyData =
+          await fetchChatHistoryAll(chatbotCode, null, null);
+      debugPrint("📥 Fetched history data: ${historyData.toJson()}");
+
+      final prefs = await SharedPreferences.getInstance();
+      int? historyId = prefs.getInt('chatbot_history_id');
+
+      if (historyId != null && historyId > 0) {
+        Provider.of<HistoryidProvider>(context, listen: false)
+            .setChatbotHistoryId(historyId.toString());
+      } else {
+        debugPrint("⚠ No valid history data found in SharedPreferences.");
+      }
+    } catch (e, stackTrace) {
+      debugPrint("❌ Error in loadChatHistoryId: $e");
+      debugPrint("🛑 StackTrace: $stackTrace");
+    }
+  }
+
+  Future<void> fetchAndUpdateChatHistory(
+      {bool appendNewMessages = false}) async {
+    final historyId =
+        Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
+
+    String historyIdStr = historyId?.toString() ?? "";
+
+    try {
+      List<String> contents = await fetchChatHistory(historyIdStr);
+      debugPrint("💬 Retrieved chat history: $contents");
+
+      // Cập nhật UI trên main thread
+      setState(() {
+        _messages = [];
+        //         List<ImageStatistic>? images = contents.?.images!;
+        // List<Map<String, dynamic>>? table = contents.data?.table;
+        if (appendNewMessages) {
+          for (var content in contents) {
+            if (!_messages.any((msg) => msg['text'] == content)) {
+              _messages.add({
+                'type': 'bot',
+                'text': content,
+                'image': 'resources/logo_smart.png',
+              });
+            }
+          }
+        } else {
+          // Load toàn bộ lịch sử từ đầu
+          _messages.clear();
+
+          for (var content in contents) {
+            _messages.insert(0, {
+              'type': 'bot',
+              'text': content,
+              'image': 'resources/logo_smart.png',
+            });
+          }
+        }
+      });
+    } catch (e, stackTrace) {
+      debugPrint("❌ Error in fetchAndUpdateChatHistory: $e");
+      debugPrint("🛑 StackTrace: $stackTrace");
     }
   }
 
