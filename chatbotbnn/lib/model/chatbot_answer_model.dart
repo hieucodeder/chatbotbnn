@@ -26,6 +26,7 @@ class ChatbotData {
   String? query;
   String? response;
   int? type;
+  List<String>? suggestions;
   String? message;
   List<ImageStatistic>? images;
   List<Map<String, dynamic>>? table;
@@ -34,6 +35,7 @@ class ChatbotData {
       {this.query,
       this.response,
       this.type,
+      this.suggestions,
       this.message,
       this.images,
       this.table});
@@ -43,10 +45,13 @@ class ChatbotData {
     response = json['response'];
     type = json['type'];
     message = json['message'];
+    suggestions = json['suggestions'] != null
+        ? List<String>.from(json['suggestions'])
+        : []; // Đảm bảo không lỗi khi JSON không có `suggestions`
     if (json['images'] != null) {
       images = <ImageStatistic>[];
       json['images'].forEach((v) {
-        images!.add(new ImageStatistic.fromJson(v));
+        images!.add(ImageStatistic.fromJson(v));
       });
     }
     if (json['table'] != null) {
@@ -60,6 +65,8 @@ class ChatbotData {
     data['response'] = response;
     data['type'] = type;
     data['message'] = message;
+    data['suggestions'] = suggestions;
+
     if (images != null) {
       data['images'] = images!.map((v) => v.toJson()).toList();
     }

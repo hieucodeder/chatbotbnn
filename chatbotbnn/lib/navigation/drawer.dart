@@ -1,11 +1,8 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/delete_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
-import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/delete_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
@@ -57,7 +54,6 @@ class _DrawerCustomState extends State<DrawerCustom> {
       if (historyId != null) {
         Provider.of<HistoryidProvider>(context, listen: false)
             .setChatbotHistoryId(historyId);
-        print('loadinghistory $historyId');
       } else {}
     } catch (e) {}
   }
@@ -381,7 +377,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                 width: double.infinity,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                   color:
                                       const Color(0xFF3B3B3B).withOpacity(0.5),
                                 ),

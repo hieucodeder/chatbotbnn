@@ -1,8 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
-  static const String domain =
-      'https://mard.aiacademy.edu.vn'; // Cố định tên miền
+  static const String domain = 'https://mard.aiacademy.edu.vn';
 
   static const String _defaultDomain = 'https://mard.aiacademy.edu.vn';
 

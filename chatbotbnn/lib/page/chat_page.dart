@@ -1,16 +1,12 @@
-import 'dart:convert';
-
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
-import 'package:chatbotbnn/model/get_historyid.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
+import 'package:chatbotbnn/model/history_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
-import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/chatbot_answer_service.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
-import 'package:chatbotbnn/service/get_history_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/history_service.dart';
 import 'package:flutter/material.dart';
@@ -96,7 +92,7 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     setState(() {
-      _messages.add({'type': 'user', 'text': userQuery});
+      _messages.insert(0, {'type': 'user', 'text': userQuery});
       _isLoading = true;
     });
 
@@ -144,10 +140,10 @@ class _ChatPageState extends State<ChatPage> {
           List<ImageStatistic>? images = response.data?.images!;
           List<Map<String, dynamic>>? table = response.data?.table;
 
-          _messages.add({
+          _messages.insert(0, {
             'type': 'bot',
             'text': response.data!.message,
-            'image': 'resources/logo_smart.png',
+            // 'image': 'resources/logo_smart.png',
             'table': table,
             'imageStatistic': images,
           });
@@ -155,7 +151,7 @@ class _ChatPageState extends State<ChatPage> {
         } else {
           _messages.add({
             'type': 'bot',
-            'text': 'Bot không thể trả lời, vui lòng thử lại.',
+            'text': 'Trợ lý AI không thể trả lời, vui lòng thử lại.',
             'image': 'resources/logo_smart.png',
           });
         }
@@ -196,43 +192,31 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Future<void> fetchAndUpdateChatHistory(
-      {bool appendNewMessages = false}) async {
+  Future<void> fetchAndUpdateChatHistory() async {
+    if (!mounted) return;
+
     final historyId =
         Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
-
     String historyIdStr = historyId?.toString() ?? "";
 
     try {
-      List<String> contents = await fetchChatHistory(historyIdStr);
+      List<Map<String, dynamic>> contents =
+          await fetchChatHistory(historyIdStr);
       debugPrint("💬 Retrieved chat history: $contents");
 
-      // Cập nhật UI trên main thread
-      setState(() {
-        _messages = [];
-        //         List<ImageStatistic>? images = contents.?.images!;
-        // List<Map<String, dynamic>>? table = contents.data?.table;
-        if (appendNewMessages) {
-          for (var content in contents) {
-            if (!_messages.any((msg) => msg['text'] == content)) {
-              _messages.add({
-                'type': 'bot',
-                'text': content,
-                'image': 'resources/logo_smart.png',
-              });
-            }
-          }
-        } else {
-          // Load toàn bộ lịch sử từ đầu
-          _messages.clear();
+      if (!mounted) return;
 
-          for (var content in contents) {
-            _messages.insert(0, {
-              'type': 'bot',
-              'text': content,
-              'image': 'resources/logo_smart.png',
-            });
-          }
+      setState(() {
+        _messages.clear();
+        for (var content in contents) {
+          _messages.insert(0, {
+            'type': 'bot',
+            'text': content['text'] ?? "",
+            // 'image': 'resources/logo_smart.png',
+            'table': content['table'] as List<Map<String, dynamic>>?,
+            'imageStatistic':
+                content['imageStatistic'] as List<ImageStatistic>?,
+          });
         }
       });
     } catch (e, stackTrace) {
@@ -253,18 +237,16 @@ class _ChatPageState extends State<ChatPage> {
       color: Colors.white,
       child: Column(
         children: [
-          // Text(Provider.of<NavigationProvider>(context, listen: false)
-          //     .currentIndexhistoryId),
           Expanded(
             child: ListView.builder(
               itemCount: _messages.length,
-              reverse: true,
+              reverse: false,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
               itemBuilder: (context, index) {
                 final message = _messages[_messages.length - 1 - index];
 
                 final isUser = message['type'] == 'user';
-                final String? imageUrl = message['image'];
+                // final String? imageUrl = message['image'];
                 List<Map<String, dynamic>>? table = message['table'];
                 List<String> columns = [];
                 if (table != null && table.isNotEmpty) {
@@ -276,14 +258,14 @@ class _ChatPageState extends State<ChatPage> {
                       isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    if (!isUser && message.containsKey('image'))
-                      CircleAvatar(
-                        backgroundImage: imageUrl!.startsWith('http')
-                            ? NetworkImage(imageUrl)
-                            : AssetImage(imageUrl) as ImageProvider,
-                        radius: 20,
-                        backgroundColor: Colors.transparent,
-                      ),
+                    // if (!isUser && message.containsKey('image'))
+                    //   CircleAvatar(
+                    //     backgroundImage: imageUrl!.startsWith('http')
+                    //         ? NetworkImage(imageUrl)
+                    //         : AssetImage(imageUrl) as ImageProvider,
+                    //     radius: 20,
+                    //     backgroundColor: Colors.transparent,
+                    //   ),
                     Flexible(
                       child: Column(
                         children: [
@@ -292,7 +274,11 @@ class _ChatPageState extends State<ChatPage> {
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: isUser ? selectColors : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(
+                                    10), // Bo tròn góc trên trái
+                                bottomRight: Radius.circular(10),
+                              ), // Bo tròn góc dưới phải
                             ),
                             child: Text(
                               message['text']!,
@@ -402,7 +388,7 @@ class _ChatPageState extends State<ChatPage> {
                                                 height: MediaQuery.of(context)
                                                         .size
                                                         .height *
-                                                    0.5,
+                                                    0.7,
                                                 child: PhotoView(
                                                   imageProvider:
                                                       NetworkImage(image.path!),
