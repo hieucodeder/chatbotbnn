@@ -35,6 +35,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _isLoading = false;
   late HistoryidProvider _historyidProvider;
   List<String> _suggestions = [];
+
   @override
   void initState() {
     super.initState();
@@ -148,11 +149,18 @@ class _ChatPageState extends State<ChatPage> {
             'table': table,
             'imageStatistic': images,
           });
+
           // Cập nhật danh sách gợi ý từ phản hồi API
-          if (response.data!.suggestions != null &&
-              response.data!.suggestions!.isNotEmpty) {
-            _suggestions = response.data!.suggestions!;
+          var suggestions = response.data!.suggestions;
+          print(suggestions);
+          if (suggestions != null) {
+            if (suggestions!.isNotEmpty) {
+              _suggestions = suggestions;
+            } else {
+              _suggestions = [];
+            }
           }
+
           loadChatHistoryId(context, chatbotCode);
         } else {
           _messages.add({
@@ -183,14 +191,15 @@ class _ChatPageState extends State<ChatPage> {
           await fetchChatHistoryAll(chatbotCode, null, null);
       debugPrint("📥 Fetched history data: ${historyData.toJson()}");
 
-      final prefs = await SharedPreferences.getInstance();
-      int? historyId = prefs.getInt('chatbot_history_id');
+      int? historyId = int.tryParse(
+          Provider.of<HistoryidProvider>(context, listen: false)
+              .chatbotHistoryId);
 
       if (historyId != null && historyId > 0) {
         Provider.of<HistoryidProvider>(context, listen: false)
             .setChatbotHistoryId(historyId.toString());
       } else {
-        debugPrint("⚠ No valid history data found in SharedPreferences.");
+        debugPrint("⚠ No valid history data found in Provider.");
       }
     } catch (e, stackTrace) {
       debugPrint("❌ Error in loadChatHistoryId: $e");
@@ -201,6 +210,8 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> fetchAndUpdateChatHistory() async {
     if (!mounted) return;
 
+    // final historyId =
+    //     Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
     final historyId =
         Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
     String historyIdStr = historyId?.toString() ?? "";
@@ -208,7 +219,7 @@ class _ChatPageState extends State<ChatPage> {
     try {
       List<Map<String, dynamic>> contents =
           await fetchChatHistory(historyIdStr);
-      debugPrint("💬 Retrieved chat history: $contents");
+      debugPrint("💬 Retrieved chat history: $historyId");
 
       if (!mounted) return;
 
@@ -439,20 +450,25 @@ class _ChatPageState extends State<ChatPage> {
                                     const Icon(Icons.image,
                                         size:
                                             50), // Icon thay thế nếu không có ảnh
-                                  Container(
-                                    margin:
-                                        const EdgeInsets.symmetric(vertical: 5),
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: isUser
-                                          ? selectColors
-                                          : Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(10),
+                                  Visibility(
+                                    visible:
+                                        image.description?.isNotEmpty ?? false,
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 5),
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: isUser
+                                            ? selectColors
+                                            : Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        image.description ?? '',
+                                        style: textChatBot,
+                                      ),
                                     ),
-                                    child: Text(
-                                        image.description ?? "Không có mô tả",
-                                        style: textChatBot),
-                                  ),
+                                  )
                                 ],
                               );
                             }).toList(),
