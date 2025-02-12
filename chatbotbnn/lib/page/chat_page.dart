@@ -30,10 +30,12 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  List<Map<String, dynamic>> _messages = [];
+  final List<Map<String, dynamic>> _messages = [];
   String? _initialMessage;
   bool _isLoading = false;
   late HistoryidProvider _historyidProvider;
+  List<String> _suggestions = [];
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +46,6 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
-    // stopPatrolling(context);
     _historyidProvider.removeListener(fetchAndUpdateChatHistory);
     super.dispose();
   }
@@ -147,6 +148,11 @@ class _ChatPageState extends State<ChatPage> {
             'table': table,
             'imageStatistic': images,
           });
+          // Cập nhật danh sách gợi ý từ phản hồi API
+          if (response.data!.suggestions != null &&
+              response.data!.suggestions!.isNotEmpty) {
+            _suggestions = response.data!.suggestions!;
+          }
           loadChatHistoryId(context, chatbotCode);
         } else {
           _messages.add({
@@ -269,22 +275,25 @@ class _ChatPageState extends State<ChatPage> {
                     Flexible(
                       child: Column(
                         children: [
-                          Container(
-                            margin: const EdgeInsets.symmetric(vertical: 5),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isUser ? selectColors : Colors.grey[300],
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(
-                                    10), // Bo tròn góc trên trái
-                                bottomRight: Radius.circular(10),
-                              ), // Bo tròn góc dưới phải
-                            ),
-                            child: Text(
-                              message['text']!,
-                              style: GoogleFonts.robotoCondensed(
-                                fontSize: 15,
-                                color: isUser ? Colors.white : Colors.black,
+                          Visibility(
+                            visible: message['text']?.isNotEmpty ?? false,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 5),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isUser ? selectColors : Colors.grey[300],
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(
+                                      10), // Bo tròn góc trên trái
+                                  bottomRight: Radius.circular(10),
+                                ), // Bo tròn góc dưới phải
+                              ),
+                              child: Text(
+                                message['text']!,
+                                style: GoogleFonts.robotoCondensed(
+                                  fontSize: 15,
+                                  color: isUser ? Colors.white : Colors.black,
+                                ),
                               ),
                             ),
                           ),
@@ -478,6 +487,34 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ],
+          if (_suggestions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _suggestions.map((suggestion) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        onPressed: () {
+                          _controller.text = suggestion; // Đưa gợi ý vào ô nhập
+                          // _sendMessage(); // Gửi tin nhắn tự độngfsd
+                        },
+                        child: Text(suggestion),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           Container(
             padding: const EdgeInsets.all(10),
             color: Colors.grey[200],
@@ -501,11 +538,14 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                IconButton(
-                  icon: Icon(
-                      _isLoading ? Icons.hourglass_empty : Icons.send_rounded,
-                      color: selectColors),
-                  onPressed: _sendMessage,
+                Visibility(
+                  visible: !_isLoading,
+                  child: IconButton(
+                    icon: Icon(
+                        _isLoading ? Icons.hourglass_empty : Icons.send_rounded,
+                        color: selectColors),
+                    onPressed: _sendMessage,
+                  ),
                 ),
               ],
             ),

@@ -23,9 +23,7 @@ Future<ChatbotAnswerModel?> fetchApiResponse(
 
       // Kiểm tra nếu JSON có chứa `suggestions`
       if (jsonResponse.containsKey('data') &&
-          jsonResponse['data'].containsKey('suggestions')) {
-        print("Suggestions: ${jsonResponse['data']['suggestions']}");
-      }
+          jsonResponse['data'].containsKey('suggestions')) {}
 
       return ChatbotAnswerModel.fromJson(jsonResponse);
     } else {

@@ -28,7 +28,6 @@ class _DrawerCustomState extends State<DrawerCustom> {
   late Future<HistoryAllModel> _historyAllModel;
   TextEditingController startDateController = TextEditingController();
   TextEditingController endDateController = TextEditingController();
-  String? startDate, endDate;
 
   @override
   void initState() {
@@ -94,12 +93,10 @@ class _DrawerCustomState extends State<DrawerCustom> {
           content:
               const Text('Bạn có chắc chắn muốn xóa lịch sử chat này không?'),
           actions: [
-            // Nút "Đóng"
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Đóng'),
             ),
-            // Nút "Xóa"
             TextButton(
               onPressed: () async {
                 try {
@@ -153,31 +150,63 @@ class _DrawerCustomState extends State<DrawerCustom> {
     }
   }
 
-  DateTime? selectedStartDate;
-  DateTime? selectedEndDate;
+  String? startDate;
+  String? endDate;
+  final TextEditingController _controller = TextEditingController();
+  void _selectDateRange() async {
+    try {
+      // Chọn ngày bắt đầu
+      final DateTime? startPicked = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2101),
+      );
 
-  // Hàm chọn cả ngày bắt đầu và ngày kết thúc cùng một lúc
-  Future<void> selectDateRange(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      initialDateRange: selectedStartDate != null && selectedEndDate != null
-          ? DateTimeRange(start: selectedStartDate!, end: selectedEndDate!)
-          : DateTimeRange(
-              start: DateTime.now(),
-              end: DateTime.now().add(Duration(days: 1))),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
+      if (startPicked != null) {
+        // Chọn ngày kết thúc
+        final DateTime? endPicked = await showDatePicker(
+          context: context,
+          initialDate: startPicked.add(const Duration(days: 1)),
+          firstDate: startPicked,
+          lastDate: DateTime(2101),
+        );
 
-    if (picked != null &&
-        picked.start != selectedStartDate &&
-        picked.end != selectedEndDate) {
+        if (endPicked != null) {
+          // Gán giá trị đã chọn vào biến và cập nhật UI
+          setState(() {
+            startDate = DateFormat('yyyy-MM-dd').format(startPicked);
+            endDate = DateFormat('yyyy-MM-dd').format(endPicked);
+            _controller.text = '$startDate - $endDate';
+          });
+
+          await _updateDocumentsByDateRange();
+        }
+      }
+    } catch (e) {
+      print("Lỗi chọn ngày: $e");
+    }
+  }
+
+  Future<void> _updateDocumentsByDateRange() async {
+    if (startDate != null && endDate != null) {
+      final chatbotCode = Provider.of<ChatbotProvider>(context, listen: false)
+          .currentChatbotCode;
+
       setState(() {
-        selectedStartDate = picked.start;
-        selectedEndDate = picked.end;
-        startDateController.text =
-            DateFormat('dd/MM/yyyy').format(picked.start);
-        endDateController.text = DateFormat('dd/MM/yyyy').format(picked.end);
+        _historyAllModel =
+            fetchChatHistoryAll(chatbotCode, startDate!, endDate!);
+      });
+    }
+  }
+
+  void _clearDateRange() {
+    if (mounted) {
+      final chatbotCode = Provider.of<ChatbotProvider>(context, listen: false)
+          .currentChatbotCode;
+      setState(() {
+        _historyAllModel = fetchChatHistoryAll(chatbotCode, null, null);
+        _controller.clear();
       });
     }
   }
@@ -262,46 +291,60 @@ class _DrawerCustomState extends State<DrawerCustom> {
                     ),
                     Column(
                       children: [
-                        Container(
-                          width: double.infinity,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            color: const Color(0xFF3B3B3B).withOpacity(0.5),
-                          ),
-                          child: TextField(
-                            controller: startDateController,
-                            readOnly: true,
-                            decoration: InputDecoration(
-                              hintText: '  Ngày bắt đầu -> Ngày kết thúc',
-                              hintStyle: GoogleFonts.robotoCondensed(
-                                  color: Colors.white),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 0),
-                              suffixIcon: SizedBox(
-                                width: 35,
-                                height: 35,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    selectDateRange(context);
-                                  },
-                                  child: const Icon(
-                                    Icons.calendar_today,
-                                    size: 20,
-                                    color: Colors.white,
+                        GestureDetector(
+                          onTap: _selectDateRange,
+                          child: Container(
+                            width: double.infinity,
+                            height: 40,
+                            margin: const EdgeInsets.only(top: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.black38),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: TextField(
+                                      controller: _controller,
+                                      readOnly: true,
+                                      textAlign: TextAlign.center,
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            'Chọn ngày bắt đầu và kết thúc',
+                                        hintStyle: GoogleFonts.robotoCondensed(
+                                          fontSize: 14,
+                                          color: Colors.black45,
+                                        ),
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor:
-                                  const Color(0xFF3B3B3B).withOpacity(0.5),
+                                if (_controller.text.isNotEmpty)
+                                  GestureDetector(
+                                    onTap: _clearDateRange,
+                                    child: const Icon(
+                                      Icons.close_sharp,
+                                      color: Colors.black54,
+                                      size: 20,
+                                    ),
+                                  ),
+                                const VerticalDivider(
+                                  width: 20,
+                                  thickness: 1,
+                                  color: Colors.black38,
+                                ),
+                                GestureDetector(
+                                  onTap: _selectDateRange,
+                                  child: const Icon(Icons.calendar_today,
+                                      color: Colors.black54),
+                                ),
+                              ],
                             ),
-                            style: const TextStyle(color: Colors.white),
-                            onTap: () => selectDateRange(context),
                           ),
                         ),
                       ],
