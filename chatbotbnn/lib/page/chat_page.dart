@@ -30,12 +30,11 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [];
+  List<Map<String, dynamic>> _messages = [];
   String? _initialMessage;
   bool _isLoading = false;
   late HistoryidProvider _historyidProvider;
   List<String> _suggestions = [];
-
   @override
   void initState() {
     super.initState();
@@ -46,6 +45,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    // stopPatrolling(context);
     _historyidProvider.removeListener(fetchAndUpdateChatHistory);
     super.dispose();
   }
