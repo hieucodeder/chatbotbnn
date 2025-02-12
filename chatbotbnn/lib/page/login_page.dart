@@ -410,7 +410,7 @@ void showLoginErrorSnackbar(BuildContext context) {
   final snackBar = SnackBar(
     backgroundColor: Colors.white,
     content: Text(
-      'Sai số điện thoại hoặc mật khẩu.',
+      'Sai tài khoản hoặc mật khẩu.',
       style: GoogleFonts.robotoCondensed(color: Colors.black),
     ),
     duration: const Duration(seconds: 3),

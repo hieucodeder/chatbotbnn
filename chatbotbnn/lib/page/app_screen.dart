@@ -59,7 +59,7 @@ class _AppScreenState extends State<AppScreen> {
       case 0:
         String? chatbotName = await getChatbotName();
 
-        return chatbotName ?? 'TRỢ LÝ AI'; // Nếu không có, hiển thị mặc định
+        return chatbotName ?? 'TRỢ LÝ AI';
       case 1:
         return 'DANH SÁCH TRỢ LÝ AI';
       case 2:
@@ -104,7 +104,7 @@ class _AppScreenState extends State<AppScreen> {
             } else {
               return Text(
                   (snapshot.data ?? 'TRỢ LÝ AI')
-                      .toUpperCase(), // ép kiểu thành chứ hoa
+                      .toUpperCase(), 
                   style: GoogleFonts.robotoCondensed(
                     fontSize: 17,
                     color: Colors.white,
