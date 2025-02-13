@@ -1,5 +1,7 @@
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/chatbotcolors_provider.dart';
+import 'package:chatbotbnn/provider/historyid_provider.dart';
+import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:chatbotbnn/service/role_service.dart';
 import 'package:flutter/material.dart';
@@ -78,7 +80,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
 
       try {
         final result = await fetchGetCodeModel(chatbotCode);
-        widget.onSelected(0);
+        // Điều hướng về ChatPage (index 0)
+        Provider.of<NavigationProvider>(context, listen: false)
+            .setCurrentIndex(0);
 
         if (result != null) {
         } else {}
@@ -125,6 +129,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
                           Provider.of<ChatbotProvider>(context, listen: false)
                               .setChatbotCode(chatbot.chatbotCode!);
 
+                          Provider.of<HistoryidProvider>(context, listen: false)
+                              .setChatbotHistoryId('');
                           _fetchAndNavigate();
                         }
                       },
@@ -148,7 +154,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
                                   CircleAvatar(
                                     backgroundImage: chatbot.picture != null &&
                                             chatbot.picture!.isNotEmpty
-                                        ? NetworkImage(chatbot.picture!)
+                                        ? NetworkImage(
+                                            "https://mard.aiacademy.edu.vn/api/${chatbot.picture!}")
                                         : const AssetImage(
                                                 'resources/logo_smart.png')
                                             as ImageProvider,

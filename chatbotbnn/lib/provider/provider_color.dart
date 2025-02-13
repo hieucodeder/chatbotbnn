@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Providercolor with ChangeNotifier {
-  Color _selectedColor = const Color(0xff042E4D);
+  Color _selectedColor = const Color(0xFF0D448A);
 
   Color get selectedColor => _selectedColor;
 

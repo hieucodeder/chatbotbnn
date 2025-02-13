@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/delete_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
@@ -402,8 +404,17 @@ class _DrawerCustomState extends State<DrawerCustom> {
                                   )
                                 : Messages(content: 'Không có dữ liệu');
 
-                            final content =
+                            final rawContent =
                                 userMessage.content ?? 'Không có dữ liệu';
+
+                            String content;
+                            try {
+                              final decoded = jsonDecode(rawContent);
+                              content = decoded['query'] ?? 'Không có dữ liệu';
+                            } catch (e) {
+                              content =
+                                  rawContent; // Nếu không phải JSON, giữ nguyên
+                            }
 
                             return {
                               'key': chatbotHistoryId,

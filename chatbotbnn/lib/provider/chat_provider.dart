@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class ChatProvider with ChangeNotifier {
-  List<Map<String, String>> _messages = [];
+  List<Map<String, dynamic>> _messages = [];
   String? _initialMessage;
+
+  List<Map<String, dynamic>> messages() {
+    return _messages;
+  }
 
   Future<void> loadInitialMessage(BuildContext context) async {
     final chatbotCode =
@@ -13,6 +17,7 @@ class ChatProvider with ChangeNotifier {
 
     if (chatbotCode != null) {
       final chatbotData = await fetchGetCodeModel(chatbotCode);
+      _messages = [];
       if (chatbotData != null) {
         _initialMessage = chatbotData.initialMessages;
         _messages.add({

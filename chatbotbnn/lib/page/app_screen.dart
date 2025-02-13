@@ -118,8 +118,8 @@ class _AppScreenState extends State<AppScreen> {
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
                 onPressed: () {
-                  // Provider.of<ChatProvider>(context)
-                  //     .loadInitialMessage(context);
+                  Provider.of<ChatProvider>(context, listen: false)
+                      .loadInitialMessage(context);
                 },
                 icon: const Icon(Icons.drive_file_rename_outline_sharp)),
           )

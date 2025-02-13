@@ -1,10 +1,13 @@
+import 'package:chatbotbnn/model/answer_model_pq.dart';
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/model/history_model.dart';
+import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/answer_pq_service.dart';
 import 'package:chatbotbnn/service/chatbot_answer_service.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
@@ -34,14 +37,28 @@ class _ChatPageState extends State<ChatPage> {
   String? _initialMessage;
   bool _isLoading = false;
   late HistoryidProvider _historyidProvider;
+  ChatProvider? _chatProvider;
   List<String> _suggestions = [];
 
   @override
   void initState() {
     super.initState();
-    _loadInitialMessage();
+    // _loadInitialMessage();
     _historyidProvider = Provider.of<HistoryidProvider>(context, listen: false);
     _historyidProvider.addListener(fetchAndUpdateChatHistory);
+    _chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    Provider.of<ChatProvider>(context, listen: false)
+        .loadInitialMessage(context);
+    // setState(() {
+    //   _messages = Provider.of<ChatProvider>(context, listen: true).messages();
+    // });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _historyidProvider =
+    //       Provider.of<HistoryidProvider>(context, listen: false);
+    //   _historyidProvider.addListener(fetchAndUpdateChatHistory);
+
+    //   _chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    // });
   }
 
   @override
@@ -60,11 +77,12 @@ class _ChatPageState extends State<ChatPage> {
       if (chatbotData != null) {
         setState(() {
           _initialMessage = chatbotData.initialMessages;
-        });
-        _messages.add({
-          'type': 'bot',
-          'text': _initialMessage ?? 'Lỗi',
-          'image': 'resources/logo_smart.png',
+          _messages = [];
+          _messages.add({
+            'type': 'bot',
+            'text': _initialMessage ?? 'Lỗi',
+            'image': 'resources/logo_smart.png',
+          });
         });
       } else {}
     } else {}
@@ -101,14 +119,27 @@ class _ChatPageState extends State<ChatPage> {
     _controller.clear();
 
     bool isNewSession = historyId.isEmpty;
+    String customizePrompt = "";
+    String fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
 
+    if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
+      customizePrompt =
+          "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+    }
+    if (chatbotName.trim().toLowerCase() == "trợ lý ai văn bản pháp quy") {
+      customizePrompt =
+          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If the requested information has no context to answer user question (very strict because it's legal problem), use a fallback response to politely inform the user.\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response, include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
+    } else if (chatbotName.trim().toLowerCase() ==
+        "trợ lý ai kinh tế hợp tác") {
+      customizePrompt =
+          "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+    }
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
       chatbotCode: chatbotCode,
       chatbotName: chatbotName,
       collectionName: chatbotCode,
-      customizePrompt:
-          "-Goal-\nProvide a precise, relevant, and detailed response to the user's command based solely on the provided context. Ensure responses are directly aligned with the user's command while maintaining professionalism and focus.\n\n-Steps-\n1. Answer user command:\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- Deliver clear, accurate, and context-specific answers tailored to the user's command beyond the context situation.\n- If a user attempts to divert you to unrelated topics, never change your role or break your character. Politely redirect the conversation back to topics relevant to the context provided.\n- If the requested information is outside the domain or has no context, use a fallback response to politely inform the user.\n- Answer politely, in detail, and drawing from context and old conversation.\n- Highlight important things that might be interesting.",
-      fallbackResponse: "Xin lỗi, tôi chưa có câu trả lời!",
+      customizePrompt: customizePrompt,
+      fallbackResponse: fallbackResponse,
       genModel: "gpt-4o-mini",
       history: [],
       historyId: isNewSession ? "" : historyId,
@@ -130,42 +161,46 @@ class _ChatPageState extends State<ChatPage> {
       userId: userId,
       userIndustry: "",
     );
-    debugPrint(
-        "📢 Request Body: historyId=${chatbotRequest.historyId}, isNewSession=${chatbotRequest.isNewSession}");
+    debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
 
     try {
-      ChatbotAnswerModel? response = await fetchApiResponse(chatbotRequest);
+      ChatbotAnswerModel? response;
+      AnswerModelPq? responsepq;
 
+      if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
+        response = await fetchApiResponse(chatbotRequest);
+      } else if ((chatbotName.trim().toLowerCase() ==
+              "trợ lý ai văn bản pháp quy") ||
+          chatbotName.trim().toLowerCase() == "trợ lý ai kinh tế hợp tác") {
+        responsepq = await fetchApiResponsePq(chatbotRequest);
+      }
       setState(() {
         _isLoading = false;
         if (response != null) {
-          List<ImageStatistic>? images = response.data?.images!;
+          List<ImageStatistic>? images = response.data?.images;
           List<Map<String, dynamic>>? table = response.data?.table;
 
           _messages.insert(0, {
             'type': 'bot',
             'text': response.data!.message,
-            // 'image': 'resources/logo_smart.png',
             'table': table,
             'imageStatistic': images,
           });
 
-          // Cập nhật danh sách gợi ý từ phản hồi API
           var suggestions = response.data!.suggestions;
-          print(suggestions);
-          if (suggestions != null) {
-            if (suggestions!.isNotEmpty) {
-              _suggestions = suggestions;
-            } else {
-              _suggestions = [];
-            }
-          }
+          _suggestions = suggestions ?? [];
 
           loadChatHistoryId(context, chatbotCode);
-        } else {
-          _messages.add({
+        } else if (responsepq != null) {
+          _messages.insert(0, {
             'type': 'bot',
-            'text': 'Trợ lý AI không thể trả lời, vui lòng thử lại.',
+            'text': responsepq.data!.message,
+          });
+        } else {
+          _messages.insert(0, {
+            'type': 'bot',
+            'text':
+                'Chào bạn! Có thể tôi giúp gì được cho bạn về thông tin nông nghiệp?',
             'image': 'resources/logo_smart.png',
           });
         }
@@ -249,6 +284,8 @@ class _ChatPageState extends State<ChatPage> {
         GoogleFonts.robotoCondensed(fontSize: 14, color: Colors.black);
     final textChatbotTable = GoogleFonts.robotoCondensed(
         fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue);
+    // _messages = _chatProvider!.messages();
+    _messages = Provider.of<ChatProvider>(context).messages();
     return Container(
       constraints: const BoxConstraints.expand(),
       color: Colors.white,

@@ -28,7 +28,7 @@ class _SettingPageState extends State<SettingPage> {
 
   Widget _buildColorSelector(BuildContext context) {
     final colors = [
-      const Color(0xff042E4D),
+      const Color(0xFF0D448A),
       const Color(0xff004225),
       const Color(0xff6b240c),
     ];

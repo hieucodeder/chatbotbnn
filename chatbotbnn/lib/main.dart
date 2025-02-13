@@ -1,4 +1,5 @@
 import 'package:chatbotbnn/page/slaps_page.dart';
+import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/chatbotcolors_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
@@ -15,7 +16,8 @@ void main() {
       ChangeNotifierProvider(create: (_) => ChatbotProvider()),
       ChangeNotifierProvider(create: (_) => ChatbotcolorsProvider()),
       ChangeNotifierProvider(create: (_) => HistoryidProvider()),
-      ChangeNotifierProvider(create: (_) => ChatbotProvider())
+      ChangeNotifierProvider(create: (_) => ChatbotProvider()),
+      ChangeNotifierProvider(create: (_) => ChatProvider())
     ],
     child: const MyApp(),
   ));

@@ -76,10 +76,11 @@ class _SlapsPageState extends State<SlapsPage> with TickerProviderStateMixin {
                         fit: BoxFit.cover,
                       ),
                     ),
-                    const Text('Bộ nông nghiệp Việt Nam'),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
+                    const Text('Bộ nông nghiệp và Phát triển nông thôn'),
+                    const SizedBox(height: 15),
                     Text(
-                      'Phần mềm Chat Bot dành cho bộ nông nghiệp',
+                      'Trợ lý AI Bộ nông nghiệp và Phát triển nông thôn',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.robotoCondensed(
                         fontSize: 16,
