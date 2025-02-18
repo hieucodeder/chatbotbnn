@@ -6,6 +6,7 @@ import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/app_config.dart';
 import 'package:chatbotbnn/service/delete_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/login_service.dart';
@@ -37,9 +38,12 @@ class _DrawerCustomState extends State<DrawerCustom> {
     _fetchHistoryAllModel();
   }
 
-  Future<String?> getChatbotName() async {
+  Future<Map<String, String?>> getChatbotInfo() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('chatbot_name');
+    return {
+      'name': prefs.getString('chatbot_name'),
+      'picture': prefs.getString('chatbot_picture'),
+    };
   }
 
   void _fetchHistoryAllModel() {
@@ -163,6 +167,33 @@ class _DrawerCustomState extends State<DrawerCustom> {
         initialDate: DateTime.now(),
         firstDate: DateTime(2000),
         lastDate: DateTime(2101),
+        helpText: "📅 CHỌN NGÀY BẮT ĐẦU", // Viết hoa toàn bộ để dễ đọc
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Colors.blue, // Màu chính (nút chọn)
+                onPrimary: Colors.white, // Màu chữ trên nền chính
+                onSurface: Colors.black, // Màu chữ trên nền trắng
+              ),
+            ),
+            child: child == null
+                ? const SizedBox() // Tránh lỗi nếu child null
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DefaultTextStyle.merge(
+                        style: GoogleFonts.robotoCondensed(
+                          fontSize: 24, // Kích thước lớn hơn
+                          fontWeight: FontWeight.bold, // Chữ đậm
+                          color: Colors.red, // Màu chữ đỏ
+                        ),
+                        child: child,
+                      ),
+                    ],
+                  ),
+          );
+        },
       );
 
       if (startPicked != null) {
@@ -172,10 +203,36 @@ class _DrawerCustomState extends State<DrawerCustom> {
           initialDate: startPicked.add(const Duration(days: 1)),
           firstDate: startPicked,
           lastDate: DateTime(2101),
+          helpText: "📅 CHỌN NGÀY KẾT THÚC",
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.light(
+                  primary: Colors.green,
+                  onPrimary: Colors.white,
+                  onSurface: Colors.black,
+                ),
+              ),
+              child: child == null
+                  ? const SizedBox()
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DefaultTextStyle.merge(
+                          style: GoogleFonts.roboto(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue, // Đổi màu chữ
+                          ),
+                          child: child,
+                        ),
+                      ],
+                    ),
+            );
+          },
         );
 
         if (endPicked != null) {
-          // Gán giá trị đã chọn vào biến và cập nhật UI
           setState(() {
             startDate = DateFormat('yyyy-MM-dd').format(startPicked);
             endDate = DateFormat('yyyy-MM-dd').format(endPicked);
@@ -227,35 +284,77 @@ class _DrawerCustomState extends State<DrawerCustom> {
             _buildHeader(context),
             Container(
               width: double.infinity,
-              height: 40,
+              height: 45,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(6),
                 color: const Color(0xFF3B3B3B).withOpacity(0.5),
               ),
               child: Row(
                 children: [
-                  Image.asset(
-                    'resources/logo_smart.png',
-                    width: 30,
-                    height: 25,
-                    fit: BoxFit.cover,
-                  ),
-                  const SizedBox(
-                    width: 5,
-                  ),
-                  FutureBuilder<String?>(
-                    future: getChatbotName(),
+                  FutureBuilder<Map<String, String?>>(
+                    future: getChatbotInfo(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const CircularProgressIndicator();
                       }
                       if (snapshot.hasError || !snapshot.hasData) {
-                        return const Text('No Name');
+                        return Row(
+                          children: [
+                            const CircleAvatar(
+                              backgroundImage:
+                                  AssetImage('resources/logo_smart.png'),
+                              radius: 20,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'No Name',
+                              style: GoogleFonts.robotoCondensed(
+                                fontSize: 15,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        );
                       }
-                      return Text(
-                        snapshot.data ?? 'No Name',
-                        style: GoogleFonts.robotoCondensed(
-                            fontSize: 15, color: Colors.white),
+
+                      final chatbotName = snapshot.data?['name'] ?? 'No Name';
+                      final chatbotPicture = snapshot.data?['picture'];
+
+                      return Row(
+                        children: [
+                          Container(
+                            height: 30,
+                            width: 30,
+                            padding: const EdgeInsets.only(
+                              left: 0,
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(width: 2, color: Colors.white),
+                              borderRadius: BorderRadius.circular(
+                                  25), // Adding rounded corners here
+                            ),
+                            child: CircleAvatar(
+                              backgroundImage: chatbotPicture != null &&
+                                      chatbotPicture.isNotEmpty
+                                  ? NetworkImage(
+                                      "${ApiConfig.baseUrlBasic}$chatbotPicture")
+                                  : const AssetImage('resources/logo_smart.png')
+                                      as ImageProvider,
+                              radius: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            chatbotName,
+                            style: GoogleFonts.robotoCondensed(
+                              fontSize: 15,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),

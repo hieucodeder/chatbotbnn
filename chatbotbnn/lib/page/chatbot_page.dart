@@ -2,6 +2,7 @@ import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/chatbotcolors_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
+import 'package:chatbotbnn/service/app_config.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:chatbotbnn/service/role_service.dart';
 import 'package:flutter/material.dart';
@@ -125,6 +126,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
                         });
                         await prefs.setString(
                             'chatbot_name', chatbot.chatbotName ?? '');
+                        await prefs.setString(
+                            'chatbot_picture', chatbot.picture ?? "");
                         if (chatbot.chatbotCode != null) {
                           Provider.of<ChatbotProvider>(context, listen: false)
                               .setChatbotCode(chatbot.chatbotCode!);
@@ -155,7 +158,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                                     backgroundImage: chatbot.picture != null &&
                                             chatbot.picture!.isNotEmpty
                                         ? NetworkImage(
-                                            "https://mard.aiacademy.edu.vn/api/${chatbot.picture!}")
+                                            "${ApiConfig.baseUrlBasic}${chatbot.picture!}")
                                         : const AssetImage(
                                                 'resources/logo_smart.png')
                                             as ImageProvider,

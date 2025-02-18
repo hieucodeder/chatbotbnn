@@ -18,7 +18,6 @@ Future<AnswerModelPq?> fetchApiResponsePq(
       headers: headers,
       body: requestBody,
     );
-    print(response.body);
     if (response.statusCode == 200) {
       final Map<String, dynamic> jsonResponse = json.decode(response.body);
 

@@ -120,20 +120,26 @@ class _ChatPageState extends State<ChatPage> {
 
     bool isNewSession = historyId.isEmpty;
     String customizePrompt = "";
-    String fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
+    String fallbackResponse = "";
 
     if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
       customizePrompt =
           "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+      // fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
     }
     if (chatbotName.trim().toLowerCase() == "trợ lý ai văn bản pháp quy") {
       customizePrompt =
           "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If the requested information has no context to answer user question (very strict because it's legal problem), use a fallback response to politely inform the user.\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response, include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
+      // fallbackResponse =
+      //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các thông tư, nghị định, quyết định và nghị quyết, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
     } else if (chatbotName.trim().toLowerCase() ==
         "trợ lý ai kinh tế hợp tác") {
       customizePrompt =
           "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+      // fallbackResponse =
+      //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
     }
+    print("🔹 Lịch sử hội thoại trước khi gửi: $tempHistory");
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
       chatbotCode: chatbotCode,
       chatbotName: chatbotName,
@@ -141,7 +147,7 @@ class _ChatPageState extends State<ChatPage> {
       customizePrompt: customizePrompt,
       fallbackResponse: fallbackResponse,
       genModel: "gpt-4o-mini",
-      history: [],
+      history: List.from(tempHistory),
       historyId: isNewSession ? "" : historyId,
       intentQueue: [],
       isNewSession: isNewSession,
@@ -199,8 +205,7 @@ class _ChatPageState extends State<ChatPage> {
         } else {
           _messages.insert(0, {
             'type': 'bot',
-            'text':
-                'Chào bạn! Có thể tôi giúp gì được cho bạn về thông tin nông nghiệp?',
+            'text': 'Trợ lý AI không thể trả lời! ',
             'image': 'resources/logo_smart.png',
           });
         }
@@ -277,6 +282,72 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+// Helper function to parse the message
+  List<TextSpan> _parseMessage(String message) {
+    List<TextSpan> spans = [];
+    RegExp regexBold = RegExp(r'\*\*(.*?)\*\*'); // In đậm thông thường
+    RegExp regexItalic = RegExp(r'##(.*?)##'); // In nghiêng
+    RegExp regexBoldLine =
+        RegExp(r'###(.*?)###', multiLine: true); // In đậm cả dòng
+
+    int lastIndex = 0;
+
+    while (lastIndex < message.length) {
+      // Kiểm tra in đậm cả dòng với ###
+      var boldLineMatch =
+          regexBoldLine.firstMatch(message.substring(lastIndex));
+      if (boldLineMatch != null) {
+        // Thêm phần trước nếu có
+        if (boldLineMatch.start > 0) {
+          spans.add(TextSpan(
+              text: message.substring(
+                  lastIndex, lastIndex + boldLineMatch.start)));
+        }
+        spans.add(TextSpan(
+          text: boldLineMatch.group(1)! + "\n", // Thêm xuống dòng
+          style: GoogleFonts.robotoCondensed(
+              fontWeight: FontWeight.bold, fontSize: 18), // Kích thước lớn hơn
+        ));
+        lastIndex += boldLineMatch.end;
+      } else {
+        // Kiểm tra in nghiêng ##
+        var italicMatch = regexItalic.firstMatch(message.substring(lastIndex));
+        if (italicMatch != null) {
+          if (italicMatch.start > 0) {
+            spans.add(TextSpan(
+                text: message.substring(
+                    lastIndex, lastIndex + italicMatch.start)));
+          }
+          spans.add(TextSpan(
+            text: italicMatch.group(1)!,
+            style: GoogleFonts.robotoCondensed(fontStyle: FontStyle.italic),
+          ));
+          lastIndex += italicMatch.end;
+        } else {
+          // Kiểm tra in đậm **
+          var boldMatch = regexBold.firstMatch(message.substring(lastIndex));
+          if (boldMatch != null) {
+            if (boldMatch.start > 0) {
+              spans.add(TextSpan(
+                  text: message.substring(
+                      lastIndex, lastIndex + boldMatch.start)));
+            }
+            spans.add(TextSpan(
+              text: boldMatch.group(1)!,
+              style: GoogleFonts.robotoCondensed(fontWeight: FontWeight.bold),
+            ));
+            lastIndex += boldMatch.end;
+          } else {
+            // Nếu không có định dạng nào, thêm phần còn lại
+            spans.add(TextSpan(text: message.substring(lastIndex)));
+            break;
+          }
+        }
+      }
+    }
+    return spans;
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectColors = Provider.of<Providercolor>(context).selectedColor;
@@ -312,7 +383,7 @@ class _ChatPageState extends State<ChatPage> {
                       isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // if (!isUser && message.containsKey('image'))
+                    // if (!isUser && message.containsKey('image'))r
                     //   CircleAvatar(
                     //     backgroundImage: imageUrl!.startsWith('http')
                     //         ? NetworkImage(imageUrl)
@@ -336,8 +407,10 @@ class _ChatPageState extends State<ChatPage> {
                                   bottomRight: Radius.circular(10),
                                 ), // Bo tròn góc dưới phải
                               ),
-                              child: Text(
-                                message['text']!,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: _parseMessage(message['text']!),
+                                ),
                                 style: GoogleFonts.robotoCondensed(
                                   fontSize: 15,
                                   color: isUser ? Colors.white : Colors.black,

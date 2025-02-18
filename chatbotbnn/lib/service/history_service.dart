@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/history_model.dart';
 
+List<Map<String, dynamic>> tempHistory = []; // Mảng toàn cục lưu history
+
 Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
   final String apiUrl = '${ApiConfig.baseUrlHistory}get-chatbot-messages';
 
@@ -22,9 +24,25 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
     final Map<String, dynamic> responseData = jsonDecode(response.body);
     final historyModel = HistoryModel.fromJson(responseData);
 
-    return historyModel.data?.map((e) {
+    tempHistory.clear(); 
+
+    final List<Map<String, dynamic>> result = historyModel.data?.map((e) {
           if (e.messageType == 'answer') {
             final contentJson = jsonDecode(e.content ?? '{}');
+
+            // Trích xuất history từ content nếu có
+            List<dynamic>? historyList = contentJson['history'];
+            if (historyList != null) {
+              tempHistory = historyList.map((item) {
+                return {
+                  'turn': item['turn'],
+                  'query': item['query'],
+                  'answer': item['answer'],
+                  'intents': item['intents']
+                };
+              }).toList();
+            }
+
             return {
               'text': contentJson['message'] ?? '',
               'table': (contentJson['table'] as List?)
@@ -43,6 +61,10 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
           }
         }).toList() ??
         [];
+
+    print("Lịch sử hội thoại: $tempHistory"); // Debug dữ liệu lưu lại
+
+    return result;
   } else {
     throw Exception('Failed to load chat history');
   }
