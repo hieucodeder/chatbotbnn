@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/service/app_config.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/history_model.dart';
@@ -24,23 +25,17 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
     final Map<String, dynamic> responseData = jsonDecode(response.body);
     final historyModel = HistoryModel.fromJson(responseData);
 
-    tempHistory.clear(); 
+    tempHistory.clear();
 
     final List<Map<String, dynamic>> result = historyModel.data?.map((e) {
           if (e.messageType == 'answer') {
             final contentJson = jsonDecode(e.content ?? '{}');
 
-            // Trích xuất history từ content nếu có
-            List<dynamic>? historyList = contentJson['history'];
-            if (historyList != null) {
-              tempHistory = historyList.map((item) {
-                return {
-                  'turn': item['turn'],
-                  'query': item['query'],
-                  'answer': item['answer'],
-                  'intents': item['intents']
-                };
-              }).toList();
+            // Trích xuất danh sách ảnh nếu có
+            List<String> imageUrls = [];
+            if (contentJson.containsKey('images') &&
+                contentJson['images'] is List) {
+              imageUrls = List<String>.from(contentJson['images']);
             }
 
             return {
@@ -48,21 +43,19 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
               'table': (contentJson['table'] as List?)
                   ?.map((item) => (item as Map<String, dynamic>))
                   .toList(),
-              'imageStatistic': (contentJson['images'] as List?)
-                  ?.map((img) => ImageStatistic.fromJson(img))
-                  .toList(),
+              'imageStatistic': imageUrls, // Đảm bảo danh sách ảnh được trả về
             };
           } else {
             return {
               'text': e.content ?? '',
               'table': null,
-              'imageStatistic': null,
+              'imageStatistic': [],
             };
           }
         }).toList() ??
         [];
 
-    print("Lịch sử hội thoại: $tempHistory"); // Debug dữ liệu lưu lại
+    debugPrint("✅ Lịch sử trò chuyện: ${jsonEncode(result)}");
 
     return result;
   } else {

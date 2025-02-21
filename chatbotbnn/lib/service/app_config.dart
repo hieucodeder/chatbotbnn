@@ -1,9 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
-  static const String domain = 'https://mard.aiacademy.edu.vn';
+  static const String domain = 'https://bnn.aiacademy.edu.vn';
 
-  static const String _defaultDomain = 'https://mard.aiacademy.edu.vn';
+  static const String _defaultDomain = 'https://bnn.aiacademy.edu.vn';
 
   static String get baseUrlBasic {
     return '$domain/api/';

@@ -1,5 +1,7 @@
 import 'package:chatbotbnn/model/answer_model_pq.dart';
+import 'package:chatbotbnn/model/answer_model_pqnew.dart';
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
+import 'package:chatbotbnn/model/body_suggestion.dart';
 import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/model/history_model.dart';
@@ -7,17 +9,22 @@ import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/anwser_number.dart';
 import 'package:chatbotbnn/service/answer_pq_service.dart';
+import 'package:chatbotbnn/service/answer_pqnew_service.dart';
 import 'package:chatbotbnn/service/chatbot_answer_service.dart';
 import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/history_service.dart';
+import 'package:chatbotbnn/service/suggestion_service.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatPage extends StatefulWidget {
   final String historyId;
@@ -120,11 +127,11 @@ class _ChatPageState extends State<ChatPage> {
 
     bool isNewSession = historyId.isEmpty;
     String customizePrompt = "";
-    String fallbackResponse = "";
+    String fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
 
     if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
       customizePrompt =
-          "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely this query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n   + If don't have <context relevant> don't give this\n   + Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n   + Base on <context relevant> give source link to user if relevant text catch the user's command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
       // fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
     }
     if (chatbotName.trim().toLowerCase() == "trợ lý ai văn bản pháp quy") {
@@ -139,7 +146,6 @@ class _ChatPageState extends State<ChatPage> {
       // fallbackResponse =
       //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
     }
-    print("🔹 Lịch sử hội thoại trước khi gửi: $tempHistory");
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
       chatbotCode: chatbotCode,
       chatbotName: chatbotName,
@@ -167,47 +173,145 @@ class _ChatPageState extends State<ChatPage> {
       userId: userId,
       userIndustry: "",
     );
-    debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
+    // debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
 
     try {
-      ChatbotAnswerModel? response;
-      AnswerModelPq? responsepq;
+      String? response;
+      String? responsepq;
+      List<String> suggestions = [];
+      List<Map<String, dynamic>>? table;
+      List<String> images = [];
+      if (chatbotName.trim().toLowerCase() == "trợ lý thống kê số liệu") {
+        response = await fetchApiResponseNumber(
+          chatbotRequest,
+          setState,
+          _messages,
+          (extraData) {
+            setState(() {
+              if (extraData.containsKey('suggestion') &&
+                  extraData['suggestion'] is List) {
+                suggestions = (extraData['suggestion'] as List<dynamic>)
+                    .map((e) => e.toString())
+                    .toList();
+              }
 
-      if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
-        response = await fetchApiResponse(chatbotRequest);
+              if (extraData.containsKey('table')) {
+                var tableData = extraData['table'];
+                print('🔍 Dữ liệu bảng trước khi cập nhật: $tableData');
+
+                if (tableData is List) {
+                  print('✅ Dữ liệu bảng hợp lệ: $tableData');
+                  setState(() {
+                    table = List<Map<String, dynamic>>.from(tableData);
+                  });
+                } else {
+                  print(
+                      '❌ Dữ liệu bảng không đúng kiểu: ${tableData.runtimeType}');
+                }
+              }
+              // Kiểm tra xem dữ liệu có chứa ảnh không
+              if (extraData.containsKey('imageStatistic')) {
+                var imageData = extraData['imageStatistic'];
+
+                if (imageData is List) {
+                  print('✅ Dữ liệu ảnh hợp lệ: $imageData');
+                  images = List<String>.from(imageData);
+                } else {
+                  print(
+                      '❌ Dữ liệu ảnh không đúng kiểu: ${imageData.runtimeType}');
+                }
+              }
+              print('Đây là dữ liệu gợi ý: $suggestions');
+              print('Đây là dữ liệu bảng: $table');
+            });
+          },
+        );
       } else if ((chatbotName.trim().toLowerCase() ==
               "trợ lý ai văn bản pháp quy") ||
-          chatbotName.trim().toLowerCase() == "trợ lý ai kinh tế hợp tác") {
-        responsepq = await fetchApiResponsePq(chatbotRequest);
+          chatbotName.trim().toLowerCase() == "trợ lý kinh tế hợp tác") {
+        responsepq = await fetchApiResponsePqNew(
+          chatbotRequest,
+          setState,
+          _messages,
+          (extraData) {
+            if (extraData is List<String> && extraData.isNotEmpty) {
+              setState(() {
+                _messages
+                    .add({'type': 'suggestion', 'text': extraData.join("\n")});
+              });
+            }
+          },
+        );
       }
-      setState(() {
+
+      setState(() async {
         _isLoading = false;
         if (response != null) {
-          List<ImageStatistic>? images = response.data?.images;
-          List<Map<String, dynamic>>? table = response.data?.table;
+          if (_messages.isEmpty ||
+              (_messages[0]['type'] == 'bot' &&
+                  _messages[0]['text'] == response)) {
+            // Nếu phản hồi đã có, chỉ cập nhật dữ liệu bảng và ảnh
+            _messages[0]['table'] = table;
+            _messages[0]['imageStatistic'] = images;
+          } else {
+            // Nếu chưa có phản hồi, chèn mới vào danh sách
+            _messages.insert(0, {
+              'type': 'bot',
+              'text': response,
+              'table': table,
+              'imageStatistic': images,
+            });
+          }
 
+          // if (response != null) {
+          //   if (_messages.isEmpty || _messages[0]['type'] != 'bot') {
+          //     _messages.insert(0, {
+          //       'type': 'bot',
+          //       'text': response,
+          //       'table': table,
+          //       'imageStatistic': images,
+          //     });
+          //   } else {
+          //     _messages[0]['text'] = response;
+          //     _messages[0]['table'] = table;
+          //     _messages[0]['imageStatistic'] = images;
+          //   }
+
+          if (suggestions.isNotEmpty) {
+            _suggestions = suggestions; // Cập nhật danh sách gợi ý vào state
+          }
+
+          //   loadChatHistoryId(context, chatbotCode);
+          // }
+        }
+        if (responsepq != null && responsepq.trim().isNotEmpty) {
           _messages.insert(0, {
             'type': 'bot',
-            'text': response.data!.message,
-            'table': table,
-            'imageStatistic': images,
+            'text': responsepq,
           });
 
-          var suggestions = response.data!.suggestions;
-          _suggestions = suggestions ?? [];
+          BodySuggestion body = BodySuggestion(
+            query: userQuery,
+            prompt:
+                "\"-Goal-\\nMake some suggestion questions base on user command and documents\\n\\n-Step-\\n1. Give output:\\n\\t- If has no documents don't give suggestion, return false\\n    - If user command is greeting or farewell, return false\\n\\t- 2 or 3 questions but full form question and quality in short\\n\\t- Focus on the main content of the documents, not too general\\n\\t- IMPORTANT: In first person (user view)\\n\\t- In format: {\\\"suggestions\\\": \\\"list_questions\\\"}  and don't give ```json\\n\\t- In Vietnamese\\n\\n-Input-\\n###########\\n##user command: Tôi có thể tìm hiểu thêm về các chính sách hỗ trợ cho làng nghề truyền thống không?\\ndocuments: ```\\n CHÍNH PHỦ\\n------- | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\\nĐộc lập - Tự do - Hạnh phúc \\n---------------\\nSố: 52/2018/NĐ-CP | Hà Nội, ngày 12 tháng 04 năm 2018\\n**  NGHỊ ĐỊNH  ** VỀ PHÁT TRIỂN NGÀNH NGHỀ NÔNG THÔN Theo đề nghị của Bộ trưởng Bộ Nông nghiệp và Phát triển nông thôn; Chính phủ ban hành Nghị định về phát triển ngành nghề nông thôn.\\n**  Chương IV  ** QUẢN LÝ VÀ PHÁT TRIỂN LÀNG NGHỀ, LÀNG NGHỀ TRUYỀN THỐNG\\n**  Điều 14. Hỗ trợ phát triển làng nghề  ** Làng nghề, làng nghề truyền thống được hưởng các chính sách khuyến khích phát triển ngành nghề nông thôn quy định tại Điều 7, Điều 8, Điều 9, Điều 10, Điều 11, Điều 12 Nghị định này, ngoài ra còn được hưởng các chính sách từ ngân sách địa phương như sau: 1. Hỗ trợ kinh phí trực tiếp quy định tại quyết định công nhận nghề truyền thống, làng nghề, làng nghề truyền thống; hình thức, định mức hỗ trợ cụ thể do Ủy ban nhân dân cấp tỉnh quyết định. 2. Hỗ trợ kinh phí đầu tư xây dựng cơ sở hạ tầng cho các làng nghề: a) Nội dung hỗ trợ đầu tư, cải tạo, nâng cấp và hoàn thiện cơ sở hạ tầng làng nghề: Đường giao thông, điện, nước sạch; hệ thống tiêu, thoát nước; xây dựng trung tâm, điểm bán hàng và giới thiệu sản phẩm làng nghề. b) Nguyên tắc ưu tiên: Làng nghề có nguy cơ mai một, thất truyền; làng nghề của đồng bào dân tộc thiểu số; làng nghề có thị trường tiêu thụ tốt; làng nghề gắn với phát triển du lịch và xây dựng nông thôn mới; làng nghề tạo việc làm, tăng thu nhập cho người dân địa phương; làng nghề gắn với việc bảo tồn, phát triển giá trị văn hóa thông qua các nghề truyền thống. c) Ủy ban nhân dân cấp tỉnh quyết định dự án đầu tư xây dựng cơ sở hạ tầng làng nghề theo quy định của Luật đầu tư công và các bản bản hướng dẫn theo quy định hiện hành. d) Nguồn kinh phí hỗ trợ đầu tư bao gồm: Nguồn kinh phí từ Chương trình mục tiêu quốc gia xây dựng nông thôn mới, Chương trình mục tiêu quốc gia Giảm nghèo bền vững, các chương trình mục tiêu và ngân sách của địa phương. đ) Ủy ban nhân dân cấp tỉnh quy định mức hỗ trợ đầu tư cải tạo, nâng cấp và hoàn thiện cơ sở hạ tầng làng nghề phù hợp với điều kiện thực tế của địa phương và đúng quy định của pháp luật hiện hành. 3. Ngoài các chính sách quy định tại Nghị định này, làng nghề được khuyến khích phát triển được hưởng các chính sách theo quy định tại khoản 2 Điều 15 Nghị định số 19/2015/NĐ-CP ngày 14 tháng 02 năm 2015 của Chính phủ quy định chi", // Thay đổi nếu cần
+            genmodel: "gpt-4o-mini", // Thay đổi nếu cần
+          );
+          print(body.toJson());
+          try {
+            List<String>? suggestions = await fetchSuggestions(body);
 
-          loadChatHistoryId(context, chatbotCode);
-        } else if (responsepq != null) {
-          _messages.insert(0, {
-            'type': 'bot',
-            'text': responsepq.data!.message,
-          });
-        } else {
-          _messages.insert(0, {
-            'type': 'bot',
-            'text': 'Trợ lý AI không thể trả lời! ',
-            'image': 'resources/logo_smart.png',
-          });
+            if (suggestions != null && suggestions.isNotEmpty) {
+              print("Danh sách gợi ý nhận được: $suggestions"); // Log kết quả
+
+              setState(() {
+                _suggestions = suggestions;
+              });
+            } else {
+              print("Không có gợi ý nào được trả về.");
+            }
+          } catch (e) {
+            print("Lỗi lấy suggestions: $e");
+          }
         }
       });
     } catch (e) {
@@ -250,8 +354,6 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> fetchAndUpdateChatHistory() async {
     if (!mounted) return;
 
-    // final historyId =
-    //     Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
     final historyId =
         Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
     String historyIdStr = historyId?.toString() ?? "";
@@ -266,13 +368,28 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _messages.clear();
         for (var content in contents) {
+          // Kiểm tra và ép kiểu dữ liệu imageStatistic
+          List<String> images = [];
+          if (content.containsKey('imageStatistic')) {
+            var imageData = content['imageStatistic'];
+
+            if (imageData is List) {
+              try {
+                images = List<String>.from(imageData);
+                print('✅ Dữ liệu ảnh hợp lệ: $images');
+              } catch (e) {
+                print('❌ Lỗi khi chuyển đổi dữ liệu ảnh: $e');
+              }
+            } else {
+              print('❌ Dữ liệu ảnh không đúng kiểu: ${imageData.runtimeType}');
+            }
+          }
+
           _messages.insert(0, {
             'type': 'bot',
             'text': content['text'] ?? "",
-            // 'image': 'resources/logo_smart.png',
             'table': content['table'] as List<Map<String, dynamic>>?,
-            'imageStatistic':
-                content['imageStatistic'] as List<ImageStatistic>?,
+            'imageStatistic': images, // Gán danh sách ảnh đã xác thực
           });
         }
       });
@@ -282,71 +399,92 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-// Helper function to parse the message
   List<TextSpan> _parseMessage(String message) {
     List<TextSpan> spans = [];
-    RegExp regexBold = RegExp(r'\*\*(.*?)\*\*'); // In đậm thông thường
+    RegExp regexBold = RegExp(r'\*\*(.*?)\*\*'); // In đậm
     RegExp regexItalic = RegExp(r'##(.*?)##'); // In nghiêng
-    RegExp regexBoldLine =
-        RegExp(r'###(.*?)###', multiLine: true); // In đậm cả dòng
+    RegExp regexBoldLine = RegExp(r'^\s*###\s*(.*?)\s*$', multiLine: true);
+
+    RegExp regexLink = RegExp(r'\[(.*?)\]\((.*?)\)'); // Link dạng Markdown
 
     int lastIndex = 0;
 
     while (lastIndex < message.length) {
-      // Kiểm tra in đậm cả dòng với ###
-      var boldLineMatch =
-          regexBoldLine.firstMatch(message.substring(lastIndex));
-      if (boldLineMatch != null) {
-        // Thêm phần trước nếu có
-        if (boldLineMatch.start > 0) {
-          spans.add(TextSpan(
-              text: message.substring(
-                  lastIndex, lastIndex + boldLineMatch.start)));
-        }
-        spans.add(TextSpan(
-          text: boldLineMatch.group(1)! + "\n", // Thêm xuống dòng
-          style: GoogleFonts.robotoCondensed(
-              fontWeight: FontWeight.bold, fontSize: 18), // Kích thước lớn hơn
-        ));
-        lastIndex += boldLineMatch.end;
-      } else {
-        // Kiểm tra in nghiêng ##
-        var italicMatch = regexItalic.firstMatch(message.substring(lastIndex));
-        if (italicMatch != null) {
-          if (italicMatch.start > 0) {
-            spans.add(TextSpan(
-                text: message.substring(
-                    lastIndex, lastIndex + italicMatch.start)));
-          }
-          spans.add(TextSpan(
-            text: italicMatch.group(1)!,
-            style: GoogleFonts.robotoCondensed(fontStyle: FontStyle.italic),
-          ));
-          lastIndex += italicMatch.end;
-        } else {
-          // Kiểm tra in đậm **
-          var boldMatch = regexBold.firstMatch(message.substring(lastIndex));
-          if (boldMatch != null) {
-            if (boldMatch.start > 0) {
-              spans.add(TextSpan(
-                  text: message.substring(
-                      lastIndex, lastIndex + boldMatch.start)));
-            }
-            spans.add(TextSpan(
-              text: boldMatch.group(1)!,
-              style: GoogleFonts.robotoCondensed(fontWeight: FontWeight.bold),
-            ));
-            lastIndex += boldMatch.end;
-          } else {
-            // Nếu không có định dạng nào, thêm phần còn lại
-            spans.add(TextSpan(text: message.substring(lastIndex)));
-            break;
-          }
-        }
+      List<RegExpMatch?> matches = [
+        regexLink.firstMatch(message.substring(lastIndex)),
+        regexBoldLine.firstMatch(message.substring(lastIndex)),
+        regexItalic.firstMatch(message.substring(lastIndex)),
+        regexBold.firstMatch(message.substring(lastIndex)),
+      ].where((match) => match != null).toList();
+
+      if (matches.isEmpty) {
+        spans.add(TextSpan(text: message.substring(lastIndex)));
+        break;
       }
+
+      matches.sort((a, b) => a!.start.compareTo(b!.start));
+      var match = matches.first!;
+
+      // Thêm văn bản thường trước phần định dạng
+      if (match.start > 0) {
+        spans.add(TextSpan(
+            text: message.substring(lastIndex, lastIndex + match.start)));
+      }
+
+      // Xử lý từng loại định dạng
+      if (match.pattern == regexLink) {
+        String linkText = match.group(1)!;
+        String linkUrl = match.group(2)!;
+
+        spans.add(TextSpan(
+          text: linkText,
+          style: GoogleFonts.robotoCondensed(
+              color: Colors.blue, decoration: TextDecoration.underline),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              if (await canLaunchUrl(Uri.parse(linkUrl))) {
+                await launchUrl(Uri.parse(linkUrl),
+                    mode: LaunchMode.externalApplication);
+              }
+            },
+        ));
+      } else if (match.pattern == regexBoldLine) {
+        spans.add(TextSpan(
+          text: "\n${match.group(1)!}",
+          style: GoogleFonts.robotoCondensed(
+              fontWeight: FontWeight.bold, fontSize: 16),
+        ));
+      } else if (match.pattern == regexItalic) {
+        spans.add(TextSpan(
+          text: match.group(1)!,
+          style: GoogleFonts.robotoCondensed(
+              fontStyle: FontStyle.italic, fontSize: 16),
+        ));
+      } else if (match.pattern == regexBold) {
+        spans.add(TextSpan(
+          text: match.group(1)!,
+          style: GoogleFonts.robotoCondensed(
+              fontWeight: FontWeight.bold, fontSize: 17),
+        ));
+      }
+
+      lastIndex += match.end;
     }
+
     return spans;
   }
+
+  void _scrollToBottom() {
+    Future.delayed(Duration(milliseconds: 100), () {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -364,6 +502,7 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           Expanded(
             child: ListView.builder(
+              controller: _scrollController,
               itemCount: _messages.length,
               reverse: false,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
@@ -402,14 +541,15 @@ class _ChatPageState extends State<ChatPage> {
                               decoration: BoxDecoration(
                                 color: isUser ? selectColors : Colors.grey[300],
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(
-                                      10), // Bo tròn góc trên trái
+                                  topLeft: Radius.circular(10),
                                   bottomRight: Radius.circular(10),
-                                ), // Bo tròn góc dưới phải
+                                ),
                               ),
                               child: Text.rich(
                                 TextSpan(
-                                  children: _parseMessage(message['text']!),
+                                  // children: _parseMessage(message['text']!),
+                                  children:
+                                      _parseMessage(message['text'] ?? ''),
                                 ),
                                 style: GoogleFonts.robotoCondensed(
                                   fontSize: 15,
@@ -491,78 +631,48 @@ class _ChatPageState extends State<ChatPage> {
                               ),
                             ),
                           if (message['imageStatistic'] != null &&
-                              (message['imageStatistic']
-                                      as List<ImageStatistic>)
-                                  .isNotEmpty)
-                            ...(message['imageStatistic']
-                                    as List<ImageStatistic>)
-                                .map<Widget>((image) {
+                              message['imageStatistic'] is List<String> &&
+                              message['imageStatistic'].isNotEmpty)
+                            ...(message['imageStatistic'] as List<String>)
+                                .map<Widget>((imageUrl) {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (image.path != null)
-                                    GestureDetector(
-                                      onTap: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => Dialog(
-                                            backgroundColor: Colors.transparent,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              child: SizedBox(
-                                                width: MediaQuery.of(context)
-                                                        .size
-                                                        .width *
-                                                    0.9,
-                                                height: MediaQuery.of(context)
-                                                        .size
-                                                        .height *
-                                                    0.7,
-                                                child: PhotoView(
-                                                  imageProvider:
-                                                      NetworkImage(image.path!),
-                                                  backgroundDecoration:
-                                                      const BoxDecoration(
-                                                          color: Colors.white),
-                                                  minScale:
-                                                      PhotoViewComputedScale
-                                                          .contained,
-                                                  maxScale:
-                                                      PhotoViewComputedScale
-                                                              .covered *
-                                                          2.0,
-                                                ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => Dialog(
+                                          backgroundColor: Colors.transparent,
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            child: SizedBox(
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width *
+                                                  0.9,
+                                              height: MediaQuery.of(context)
+                                                      .size
+                                                      .height *
+                                                  0.7,
+                                              child: PhotoView(
+                                                imageProvider: NetworkImage(
+                                                    imageUrl), // Sử dụng imageUrl thay vì image.path
+                                                backgroundDecoration:
+                                                    const BoxDecoration(
+                                                        color: Colors.white),
+                                                minScale: PhotoViewComputedScale
+                                                    .contained,
+                                                maxScale: PhotoViewComputedScale
+                                                        .covered *
+                                                    2.0,
                                               ),
                                             ),
                                           ),
-                                        );
-                                      },
-                                      child: Container(
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 5),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: isUser
-                                              ? selectColors
-                                              : Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          border: Border.all(
-                                              width: 2,
-                                              color:
-                                                  Colors.grey.withOpacity(0.3)),
                                         ),
-                                        child: Image.network(image.path!),
-                                      ),
-                                    )
-                                  else
-                                    const Icon(Icons.image,
-                                        size:
-                                            50), // Icon thay thế nếu không có ảnh
-                                  Visibility(
-                                    visible:
-                                        image.description?.isNotEmpty ?? false,
+                                      );
+                                    },
                                     child: Container(
                                       margin: const EdgeInsets.symmetric(
                                           vertical: 5),
@@ -570,15 +680,17 @@ class _ChatPageState extends State<ChatPage> {
                                       decoration: BoxDecoration(
                                         color: isUser
                                             ? selectColors
-                                            : Colors.grey[300],
+                                            : Colors.white,
                                         borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                            width: 2,
+                                            color:
+                                                Colors.grey.withOpacity(0.3)),
                                       ),
-                                      child: Text(
-                                        image.description ?? '',
-                                        style: textChatBot,
-                                      ),
+                                      child: Image.network(
+                                          imageUrl), // Sử dụng imageUrl thay vì image.path!
                                     ),
-                                  )
+                                  ),
                                 ],
                               );
                             }).toList(),
@@ -613,6 +725,35 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ],
+          // if (_suggestions.isNotEmpty)
+          //   Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          //     child: SingleChildScrollView(
+          //       scrollDirection: Axis.horizontal,
+          //       child: Row(
+          //         children: _suggestions.map((suggestion) {
+          //           return Padding(
+          //             padding: const EdgeInsets.symmetric(horizontal: 5),
+          //             child: ElevatedButton(
+          //               style: ElevatedButton.styleFrom(
+          //                 backgroundColor: Colors.white,
+          //                 foregroundColor: Colors.black,
+          //                 shape: RoundedRectangleBorder(
+          //                   borderRadius: BorderRadius.circular(20),
+          //                 ),
+          //               ),
+          //               onPressed: () {
+          //                 _controller.text = suggestion; // Đưa gợi ý vào ô nhập
+          //                 // _sendMessage(); // Gửi tin nhắn tự độngfsd
+          //               },
+          //               child: Text(suggestion),
+          //             ),
+          //           );
+          //         }).toList(),
+          //       ),
+          //     ),
+          //   ),
+
           if (_suggestions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -632,7 +773,6 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                         onPressed: () {
                           _controller.text = suggestion; // Đưa gợi ý vào ô nhập
-                          // _sendMessage(); // Gửi tin nhắn tự độngfsd
                         },
                         child: Text(suggestion),
                       ),
@@ -641,6 +781,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ),
             ),
+
           Container(
             padding: const EdgeInsets.all(10),
             color: Colors.grey[200],
