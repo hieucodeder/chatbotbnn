@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/service/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -30,20 +29,34 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
     final List<Map<String, dynamic>> result = historyModel.data?.map((e) {
           if (e.messageType == 'answer') {
             final contentJson = jsonDecode(e.content ?? '{}');
+            String message = contentJson['message'] ?? '';
 
-            // Trích xuất danh sách ảnh nếu có
-            List<String> imageUrls = [];
+            // Loại bỏ chuỗi "!pie!bar" khỏi text
+            message = message.replaceAll('!pie!bar', '').trim();
+
+            List<dynamic> imageUrls = [];
+
             if (contentJson.containsKey('images') &&
                 contentJson['images'] is List) {
               imageUrls = List<String>.from(contentJson['images']);
             }
 
+            final RegExp imageRegex = RegExp(r'!\[.*?\]\((.*?)\)');
+            final matches = imageRegex.allMatches(message);
+
+            for (var match in matches) {
+              if (match.group(1) != null) {
+                imageUrls.add(match.group(1)!);
+                message = message.replaceAll(match.group(0)!, '');
+              }
+            }
+
             return {
-              'text': contentJson['message'] ?? '',
+              'text': message,
               'table': (contentJson['table'] as List?)
                   ?.map((item) => (item as Map<String, dynamic>))
                   .toList(),
-              'imageStatistic': imageUrls, // Đảm bảo danh sách ảnh được trả về
+              'imageStatistic': imageUrls.toSet().toList(),
             };
           } else {
             return {

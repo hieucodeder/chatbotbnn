@@ -1,19 +1,12 @@
-import 'package:chatbotbnn/model/answer_model_pq.dart';
-import 'package:chatbotbnn/model/answer_model_pqnew.dart';
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/body_suggestion.dart';
-import 'package:chatbotbnn/model/chatbot_answer_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
-import 'package:chatbotbnn/model/history_model.dart';
 import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/anwser_number.dart';
-import 'package:chatbotbnn/service/answer_pq_service.dart';
 import 'package:chatbotbnn/service/answer_pqnew_service.dart';
-import 'package:chatbotbnn/service/chatbot_answer_service.dart';
-import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/history_service.dart';
 import 'package:chatbotbnn/service/suggestion_service.dart';
@@ -56,16 +49,8 @@ class _ChatPageState extends State<ChatPage> {
     _chatProvider = Provider.of<ChatProvider>(context, listen: false);
     Provider.of<ChatProvider>(context, listen: false)
         .loadInitialMessage(context);
-    // setState(() {
-    //   _messages = Provider.of<ChatProvider>(context, listen: true).messages();
-    // });
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   _historyidProvider =
-    //       Provider.of<HistoryidProvider>(context, listen: false);
-    //   _historyidProvider.addListener(fetchAndUpdateChatHistory);
-
-    //   _chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    // });
+    // _loadInitialMessage();
+    // getSuggestions();
   }
 
   @override
@@ -75,25 +60,24 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  Future<void> _loadInitialMessage() async {
-    final chatbotCode =
-        Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+  // Future<void> _loadInitialMessage() async {
+  //   final chatbotCode =
+  //       Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
 
-    if (chatbotCode != null) {
-      final chatbotData = await fetchGetCodeModel(chatbotCode);
-      if (chatbotData != null) {
-        setState(() {
-          _initialMessage = chatbotData.initialMessages;
-          _messages = [];
-          _messages.add({
-            'type': 'bot',
-            'text': _initialMessage ?? 'Lỗi',
-            'image': 'resources/logo_smart.png',
-          });
-        });
-      } else {}
-    } else {}
-  }
+  //   if (chatbotCode != null) {
+  //     final chatbotData = await fetchGetCodeModel(chatbotCode);
+  //     if (chatbotData != null) {
+  //       setState(() {
+  //         _initialMessage = chatbotData.initialMessages;
+  //         _messages = [];
+  //         _messages.add({
+  //           'type': 'bot',
+  //           'text': _initialMessage ?? 'Lỗi',
+  //         });
+  //       });
+  //     } else {}
+  //   } else {}
+  // }
 
   void _sendMessage() async {
     final chatbotCode =
@@ -125,24 +109,54 @@ class _ChatPageState extends State<ChatPage> {
 
     _controller.clear();
 
+    Future<void> getSuggestions() async {
+      print("✅ getSuggestions() is running...");
+
+      String savedInstructions = temporaryData ?? "";
+      print("📌 savedInstructions: $savedInstructions");
+
+      BodySuggestion body = BodySuggestion(
+        query: userQuery,
+        prompt: savedInstructions,
+        genmodel: "gpt-4o-mini",
+      );
+
+      print("📤 Sending request with body: ${body.toJson()}");
+
+      try {
+        List<String>? suggestions = await fetchSuggestions(body);
+
+        if (suggestions != null && suggestions.isNotEmpty) {
+          setState(() {
+            _suggestions = suggestions;
+          });
+          print("✅ Suggestions received: $_suggestions");
+        } else {
+          print("⚠️ No suggestions received.");
+        }
+      } catch (e) {
+        print("❌ Error fetching suggestions: $e");
+      }
+    }
+
     bool isNewSession = historyId.isEmpty;
     String customizePrompt = "";
     String fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
 
     if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
       customizePrompt =
-          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely this query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n   + If don't have <context relevant> don't give this\n   + Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n   + Base on <context relevant> give source link to user if relevant text catch the user's command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
+          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
       // fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
     }
     if (chatbotName.trim().toLowerCase() == "trợ lý ai văn bản pháp quy") {
       customizePrompt =
-          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If the requested information has no context to answer user question (very strict because it's legal problem), use a fallback response to politely inform the user.\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response, include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
+          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
       // fallbackResponse =
       //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các thông tư, nghị định, quyết định và nghị quyết, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
     } else if (chatbotName.trim().toLowerCase() ==
         "trợ lý ai kinh tế hợp tác") {
       customizePrompt =
-          "-Goal-\nProvide necessary information about the legal base on some relevant context below. Because it is legal, it must be true and detailed.\n\n-Steps-\n1. Answer:\n- Understand and Address the User's Query with Precision\n\t+ If the query is a greeting or farewell, respond concisely and give them like that hỏi tôi về các thông tư, nghị định, nghị quyết, quyết định và báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bất cứ lúc nào!.\n    + Fully analyze the user's request without making assumptions beyond the provided context.\n\t+ If the query or context is insufficient for a complete answer, ask clarifying questions before proceeding.\n    + Utilize prior conversations for continuity.\n\t+ If process in query, show Image relevant to query in output.\n- Stay on Topic and Maintain Relevance\n\t+ If the requested information lacks sufficient context to answer accurately (strict adherence due to legal concerns), provide a fallback response to inform the user politely.\n- Communicate with Impact\n    + Create a compelling, well-structured, long-form response that captivates the analyst and enhances understanding.\n- References:\n\t+ IMPORTANT: Each claim, legal basis, or cited regulation must be accompanied by a reference tag **[1], [2], [3]...** in output and References.\n\t+ At the end of the response, include a **\"Tham khảo\"** section listing references corresponding to each tag.\n\t+ References should be as **detailed as possible**, including number of official legal documents, government sources, or reputable legal research.";
+          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
       // fallbackResponse =
       //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
     }
@@ -180,8 +194,8 @@ class _ChatPageState extends State<ChatPage> {
       String? responsepq;
       List<String> suggestions = [];
       List<Map<String, dynamic>>? table;
-      List<String> images = [];
-      if (chatbotName.trim().toLowerCase() == "trợ lý thống kê số liệu") {
+      List<dynamic> images = [];
+      if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
         response = await fetchApiResponseNumber(
           chatbotRequest,
           setState,
@@ -215,20 +229,18 @@ class _ChatPageState extends State<ChatPage> {
 
                 if (imageData is List) {
                   print('✅ Dữ liệu ảnh hợp lệ: $imageData');
-                  images = List<String>.from(imageData);
+                  images = List<dynamic>.from(imageData);
                 } else {
                   print(
                       '❌ Dữ liệu ảnh không đúng kiểu: ${imageData.runtimeType}');
                 }
               }
-              print('Đây là dữ liệu gợi ý: $suggestions');
-              print('Đây là dữ liệu bảng: $table');
             });
           },
         );
       } else if ((chatbotName.trim().toLowerCase() ==
               "trợ lý ai văn bản pháp quy") ||
-          chatbotName.trim().toLowerCase() == "trợ lý kinh tế hợp tác") {
+          chatbotName.trim().toLowerCase() == "trợ lý ai kinh tế hợp tác") {
         responsepq = await fetchApiResponsePqNew(
           chatbotRequest,
           setState,
@@ -236,20 +248,19 @@ class _ChatPageState extends State<ChatPage> {
           (extraData) {
             if (extraData is List<String> && extraData.isNotEmpty) {
               setState(() {
-                _messages
-                    .add({'type': 'suggestion', 'text': extraData.join("\n")});
+                getSuggestions();
               });
             }
           },
         );
       }
 
-      setState(() async {
+      setState(() {
         _isLoading = false;
         if (response != null) {
           if (_messages.isEmpty ||
               (_messages[0]['type'] == 'bot' &&
-                  _messages[0]['text'] == response)) {
+                  _messages[0]['text'] == 'response')) {
             // Nếu phản hồi đã có, chỉ cập nhật dữ liệu bảng và ảnh
             _messages[0]['table'] = table;
             _messages[0]['imageStatistic'] = images;
@@ -257,25 +268,11 @@ class _ChatPageState extends State<ChatPage> {
             // Nếu chưa có phản hồi, chèn mới vào danh sách
             _messages.insert(0, {
               'type': 'bot',
-              'text': response,
+              'text': '',
               'table': table,
               'imageStatistic': images,
             });
           }
-
-          // if (response != null) {
-          //   if (_messages.isEmpty || _messages[0]['type'] != 'bot') {
-          //     _messages.insert(0, {
-          //       'type': 'bot',
-          //       'text': response,
-          //       'table': table,
-          //       'imageStatistic': images,
-          //     });
-          //   } else {
-          //     _messages[0]['text'] = response;
-          //     _messages[0]['table'] = table;
-          //     _messages[0]['imageStatistic'] = images;
-          //   }
 
           if (suggestions.isNotEmpty) {
             _suggestions = suggestions; // Cập nhật danh sách gợi ý vào state
@@ -289,31 +286,9 @@ class _ChatPageState extends State<ChatPage> {
             'type': 'bot',
             'text': responsepq,
           });
-
-          BodySuggestion body = BodySuggestion(
-            query: userQuery,
-            prompt:
-                "\"-Goal-\\nMake some suggestion questions base on user command and documents\\n\\n-Step-\\n1. Give output:\\n\\t- If has no documents don't give suggestion, return false\\n    - If user command is greeting or farewell, return false\\n\\t- 2 or 3 questions but full form question and quality in short\\n\\t- Focus on the main content of the documents, not too general\\n\\t- IMPORTANT: In first person (user view)\\n\\t- In format: {\\\"suggestions\\\": \\\"list_questions\\\"}  and don't give ```json\\n\\t- In Vietnamese\\n\\n-Input-\\n###########\\n##user command: Tôi có thể tìm hiểu thêm về các chính sách hỗ trợ cho làng nghề truyền thống không?\\ndocuments: ```\\n CHÍNH PHỦ\\n------- | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\\nĐộc lập - Tự do - Hạnh phúc \\n---------------\\nSố: 52/2018/NĐ-CP | Hà Nội, ngày 12 tháng 04 năm 2018\\n**  NGHỊ ĐỊNH  ** VỀ PHÁT TRIỂN NGÀNH NGHỀ NÔNG THÔN Theo đề nghị của Bộ trưởng Bộ Nông nghiệp và Phát triển nông thôn; Chính phủ ban hành Nghị định về phát triển ngành nghề nông thôn.\\n**  Chương IV  ** QUẢN LÝ VÀ PHÁT TRIỂN LÀNG NGHỀ, LÀNG NGHỀ TRUYỀN THỐNG\\n**  Điều 14. Hỗ trợ phát triển làng nghề  ** Làng nghề, làng nghề truyền thống được hưởng các chính sách khuyến khích phát triển ngành nghề nông thôn quy định tại Điều 7, Điều 8, Điều 9, Điều 10, Điều 11, Điều 12 Nghị định này, ngoài ra còn được hưởng các chính sách từ ngân sách địa phương như sau: 1. Hỗ trợ kinh phí trực tiếp quy định tại quyết định công nhận nghề truyền thống, làng nghề, làng nghề truyền thống; hình thức, định mức hỗ trợ cụ thể do Ủy ban nhân dân cấp tỉnh quyết định. 2. Hỗ trợ kinh phí đầu tư xây dựng cơ sở hạ tầng cho các làng nghề: a) Nội dung hỗ trợ đầu tư, cải tạo, nâng cấp và hoàn thiện cơ sở hạ tầng làng nghề: Đường giao thông, điện, nước sạch; hệ thống tiêu, thoát nước; xây dựng trung tâm, điểm bán hàng và giới thiệu sản phẩm làng nghề. b) Nguyên tắc ưu tiên: Làng nghề có nguy cơ mai một, thất truyền; làng nghề của đồng bào dân tộc thiểu số; làng nghề có thị trường tiêu thụ tốt; làng nghề gắn với phát triển du lịch và xây dựng nông thôn mới; làng nghề tạo việc làm, tăng thu nhập cho người dân địa phương; làng nghề gắn với việc bảo tồn, phát triển giá trị văn hóa thông qua các nghề truyền thống. c) Ủy ban nhân dân cấp tỉnh quyết định dự án đầu tư xây dựng cơ sở hạ tầng làng nghề theo quy định của Luật đầu tư công và các bản bản hướng dẫn theo quy định hiện hành. d) Nguồn kinh phí hỗ trợ đầu tư bao gồm: Nguồn kinh phí từ Chương trình mục tiêu quốc gia xây dựng nông thôn mới, Chương trình mục tiêu quốc gia Giảm nghèo bền vững, các chương trình mục tiêu và ngân sách của địa phương. đ) Ủy ban nhân dân cấp tỉnh quy định mức hỗ trợ đầu tư cải tạo, nâng cấp và hoàn thiện cơ sở hạ tầng làng nghề phù hợp với điều kiện thực tế của địa phương và đúng quy định của pháp luật hiện hành. 3. Ngoài các chính sách quy định tại Nghị định này, làng nghề được khuyến khích phát triển được hưởng các chính sách theo quy định tại khoản 2 Điều 15 Nghị định số 19/2015/NĐ-CP ngày 14 tháng 02 năm 2015 của Chính phủ quy định chi", // Thay đổi nếu cần
-            genmodel: "gpt-4o-mini", // Thay đổi nếu cần
-          );
-          print(body.toJson());
-          try {
-            List<String>? suggestions = await fetchSuggestions(body);
-
-            if (suggestions != null && suggestions.isNotEmpty) {
-              print("Danh sách gợi ý nhận được: $suggestions"); // Log kết quả
-
-              setState(() {
-                _suggestions = suggestions;
-              });
-            } else {
-              print("Không có gợi ý nào được trả về.");
-            }
-          } catch (e) {
-            print("Lỗi lấy suggestions: $e");
-          }
         }
       });
+      getSuggestions();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -361,35 +336,34 @@ class _ChatPageState extends State<ChatPage> {
     try {
       List<Map<String, dynamic>> contents =
           await fetchChatHistory(historyIdStr);
-      debugPrint("💬 Retrieved chat history: $historyId");
+      debugPrint("💬 Retrieved chat history: $historyIdStr");
 
       if (!mounted) return;
 
       setState(() {
         _messages.clear();
         for (var content in contents) {
-          // Kiểm tra và ép kiểu dữ liệu imageStatistic
-          List<String> images = [];
+          List<dynamic> images = [];
+
+          // Kiểm tra và xử lý danh sách hình ảnh từ `imageStatistic`
           if (content.containsKey('imageStatistic')) {
             var imageData = content['imageStatistic'];
 
-            if (imageData is List) {
-              try {
-                images = List<String>.from(imageData);
-                print('✅ Dữ liệu ảnh hợp lệ: $images');
-              } catch (e) {
-                print('❌ Lỗi khi chuyển đổi dữ liệu ảnh: $e');
-              }
+            if (imageData is List<String>) {
+              images = imageData;
+              debugPrint('✅ Dữ liệu ảnh hợp lệ: $images');
             } else {
-              print('❌ Dữ liệu ảnh không đúng kiểu: ${imageData.runtimeType}');
+              debugPrint(
+                  '❌ Dữ liệu ảnh không đúng kiểu: ${imageData.runtimeType}');
             }
           }
 
+          // Chèn tin nhắn vào danh sách `_messages`
           _messages.insert(0, {
             'type': 'bot',
             'text': content['text'] ?? "",
             'table': content['table'] as List<Map<String, dynamic>>?,
-            'imageStatistic': images, // Gán danh sách ảnh đã xác thực
+            'imageStatistic': images, // Danh sách link ảnh
           });
         }
       });

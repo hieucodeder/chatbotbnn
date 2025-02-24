@@ -9,26 +9,31 @@ Future<List<String>?> fetchSuggestions(BodySuggestion body) async {
 
   try {
     final String requestBody = jsonEncode(body.toJson()); // Encode đúng dữ liệu
-
     final Map<String, String> headers = await ApiConfig.getHeaders();
+
     final response = await http.post(
       Uri.parse(apiUrl),
       headers: headers,
       body: requestBody,
     );
+
     print(response.body);
+
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
       SuggestionResponeModel suggestionResponse =
           SuggestionResponeModel.fromJson(responseData);
-      return suggestionResponse
-          .data?.suggestions; // Trả về danh sách suggestions
+
+      return suggestionResponse.data?.suggestions
+          ?.map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
     } else {
-      print("Lỗi API: ${response.statusCode} - ${response.body}");
+      print("Lỗi API: \${response.statusCode} - \${response.body}");
       return null;
     }
   } catch (e) {
-    print("Lỗi kết nối API: $e");
+    print("Lỗi kết nối API: \$e");
     return null;
   }
 }

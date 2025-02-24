@@ -8,13 +8,13 @@ class SuggestionResponeModel {
   SuggestionResponeModel.fromJson(Map<String, dynamic> json) {
     message = json['message'];
     result = json['result'];
-    data = json['data'] != null ? new Data.fromJson(json['data']) : null;
+    data = json['data'] != null ? Data.fromJson(json['data']) : null;
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['message'] = this.message;
-    data['result'] = this.result;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['message'] = message;
+    data['result'] = result;
     if (this.data != null) {
       data['data'] = this.data!.toJson();
     }
@@ -32,8 +32,8 @@ class Data {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['suggestions'] = this.suggestions;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['suggestions'] = suggestions;
     return data;
   }
 }

@@ -6,6 +6,7 @@ import 'package:chatbotbnn/service/suggestion_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+String? temporaryData;
 Future<String?> fetchApiResponsePqNew(
   BodyChatbotAnswer chatbotRequest,
   void Function(void Function()) setState,
@@ -24,74 +25,79 @@ Future<String?> fetchApiResponsePqNew(
       ..body = requestBody;
 
     var streamedResponse = await client.send(request);
+    bool isInstructionSaved = false; // 🔹 Biến trạng thái, ban đầu là false
+
     StringBuffer fullContent = StringBuffer();
     // String fullContent = '';
     StringBuffer buffer = StringBuffer();
+    StringBuffer temporaryStorage = StringBuffer(); // Lưu hướng dẫn tạm thời
 
     await for (var data in streamedResponse.stream.transform(utf8.decoder)) {
       debugPrint('Raw response data: $data');
 
       buffer.write(data);
       List<String> parts = buffer.toString().split('\n');
-      StringBuffer fullContent =
-          StringBuffer(); // 🔹 Thay đổi từ String -> StringBuffer
+      StringBuffer fullContent = StringBuffer();
 
       for (var part in parts) {
-        if (part.startsWith('event: info')) {
-          continue; // Bỏ qua event label, chỉ xử lý `data:`
+        if (part.startsWith('event:')) {
+          continue;
         }
 
         if (part.startsWith('data:')) {
           String strData = part.replaceFirst('data:', '').trim();
+          // 🔹 Lưu hướng dẫn vào bộ nhớ tạm thay vì bỏ qua
+
+          if (!isInstructionSaved &&
+              (strData.contains("-Goal-") ||
+                  strData.contains("-Step-") ||
+                  strData.contains("-Input-"))) {
+            temporaryStorage.write(strData + "\n"); // 🔹 Lưu lại hướng dẫn
+            debugPrint(
+                '📌 Hướng dẫn được lưu:\n${temporaryStorage.toString()}'); // 🔥 In nội dung đã lưu
+
+            isInstructionSaved = true; // 🔹 Đánh dấu đã lưu, không lưu lại nữa
+          }
 
           if (!strData.contains("extraData") && !strData.contains("DONE")) {
-            try {
-              var jsonData = json.decode(strData);
+            if (strData.startsWith('')) {
+              // Chỉ decode nếu là JSON
 
-              // Map<String, dynamic> jsonData = json.decode(strData);
-              if (jsonData is Map<String, dynamic> &&
-                  jsonData.containsKey('choices')) {
-                for (var choice in jsonData['choices']) {
-                  if (choice is Map<String, dynamic> &&
-                      choice.containsKey('delta')) {
-                    String? content = choice['delta']['content'];
-                    if (content != null && content.isNotEmpty) {
-                      fullContent.write(content);
+              try {
+                var jsonData = json.decode(strData);
 
-                      setState(() {
-                        if (messages.isEmpty || messages[0]['type'] != 'bot') {
-                          messages.insert(0, {'type': 'bot', 'text': ''});
-                        }
-                        messages[0]['text'] =
-                            fullContent.toString(); // 🔹 Cập nhật nội dung
-                      });
+                // Map<String, dynamic> jsonData = json.decode(strData);
+                if (jsonData is Map<String, dynamic> &&
+                    jsonData.containsKey('choices')) {
+                  for (var choice in jsonData['choices']) {
+                    if (choice is Map<String, dynamic> &&
+                        choice.containsKey('delta')) {
+                      String? content = choice['delta']['content'];
+                      if (content != null && content.isNotEmpty) {
+                        fullContent.write(content);
+
+                        setState(() {
+                          if (messages.isEmpty ||
+                              messages[0]['type'] != 'bot') {
+                            messages.insert(0, {'type': 'bot', 'text': ''});
+                          }
+                          messages[0]['text'] =
+                              fullContent.toString(); // 🔹 Cập nhật nội dung
+                        });
+                      }
                     }
                   }
                 }
+              } catch (e) {
+                debugPrint('Lỗi xử lý JSON: $e');
               }
-            } catch (e) {
-              debugPrint('Lỗi xử lý JSON: $e');
             }
           }
         }
       }
     }
-    // // Gọi hàm fetchSuggestions sau khi phản hồi chatbot hoàn thành
-    // if (fullContent.isNotEmpty) {
-    //   BodySuggestion bodySuggestion = BodySuggestion(
-    //     query: chatbotRequest.query,
-    //     prompt: "Sinh gợi ý dựa trên phản hồi chatbot",
-    //     genmodel: "gpt-4o-mini",
-    //   );
-
-    //   List<String>? suggestions = await fetchSuggestions(bodySuggestion);
-    //   if (suggestions != null && suggestions.isNotEmpty) {
-    //     setState(() {
-    //       messages.add({'type': 'suggestion', 'text': suggestions.join("\n")});
-    //     });
-    //   }
-    // }
-
+    // 🔹 Trả về cả nội dung và hướng dẫn đã lưu
+    temporaryData = temporaryStorage.toString();
     return fullContent.toString().isNotEmpty ? fullContent.toString() : null;
   } catch (e) {
     debugPrint('Error: $e');

@@ -48,26 +48,45 @@ Future<String?> fetchApiResponseNumber(
 
           try {
             var decodedData = json.decode(strData);
+            print("📥 Raw API Data: $strData"); // Kiểm tra dữ liệu thô từ API
+
             print('Dữ liệu API trả về: $decodedData');
 
             if (tableflag) {
-              Map<String, dynamic> parsedJson = decodedData
-                      is Map<String, dynamic>
-                  ? decodedData
-                  : {'table': decodedData}; // Nếu là List, giả định nó là table
+              try {
+                Map<String, dynamic> parsedJson;
 
-              var answerModel = AnswerModelPqnew.fromJson(parsedJson);
+                if (decodedData is Map<String, dynamic>) {
+                  parsedJson = decodedData;
+                } else if (decodedData is List &&
+                    decodedData.isNotEmpty &&
+                    decodedData.first is Map<String, dynamic>) {
+                  // Nếu là danh sách chứa ít nhất một Map, giả định nó là bảng
+                  parsedJson = {'table': decodedData};
+                } else {
+                  throw Exception('Dữ liệu không hợp lệ: $decodedData');
+                }
 
-              // Xử lý bảng (table)
-              if (answerModel.table != null && answerModel.table!.isNotEmpty) {
-                print('Đây là dữ liệu api bảng: ${answerModel.table}');
-                setState(() {
-                  messages
-                      .insert(0, {'type': 'table', 'data': answerModel.table});
-                });
-                onExtraDataReceived?.call({'table': answerModel.table});
+                var answerModel = AnswerModelPqnew.fromJson(parsedJson);
+
+                // Xử lý bảng (table)
+                if (answerModel.table != null &&
+                    answerModel.table!.isNotEmpty) {
+                  print('📊 Đây là dữ liệu API bảng: ${answerModel.table}');
+
+                  setState(() {
+                    messages.insert(
+                        0, {'type': 'table', 'data': answerModel.table});
+                  });
+
+                  onExtraDataReceived?.call({'table': answerModel.table});
+                }
+              } catch (e, stacktrace) {
+                print('🚨 Lỗi khi parse dữ liệu API: $e');
+                print(stacktrace);
+              } finally {
+                tableflag = false; // Đảm bảo đặt lại flag
               }
-              tableflag = false;
             }
 
             if (suggestionFlag) {
@@ -128,47 +147,44 @@ Future<String?> fetchApiResponseNumber(
                 decodedData.containsKey('choices')) {
               for (var choice in decodedData['choices']) {
                 if (choice is Map<String, dynamic> &&
-                    choice.containsKey('delta')) {
+                    choice.containsKey('delta') &&
+                    choice['delta'] is Map<String, dynamic>) {
                   String? content = choice['delta']['content'];
+
                   if (content != null && content.isNotEmpty) {
                     fullContent.write(content);
 
                     setState(() {
-                      // Kiểm tra nếu nội dung có chứa Markdown ảnh
+                      // Kiểm tra nếu có ảnh trong nội dung
                       RegExp regex = RegExp(r"!\[(.*?)\]\((.*?)\)");
                       Iterable<RegExpMatch> matches = regex.allMatches(content);
 
-                      if (matches.isNotEmpty) {
-                        List<String> imageUrls = [];
+                      List<String> imageUrls = [];
+                      String textContent = content; // Giữ lại phần văn bản
 
-                        for (var match in matches) {
-                          String imageType =
-                              match.group(1)!; // Lấy loại ảnh (pie, bar,...)
-                          String imageUrl = match.group(2)!; // Lấy URL ảnh
+                      for (var match in matches) {
+                        String imageUrl = match.group(2)!;
+                        imageUrls.add(imageUrl);
 
-                          imageUrls.add(imageUrl);
+                        // Xóa Markdown ảnh khỏi văn bản
+                        textContent =
+                            textContent.replaceAll(match.group(0)!, '');
+                      }
 
-                          // Phân loại ảnh
-                          if (["pie", "bar", "line"]
-                              .contains(imageType.toLowerCase())) {
-                            messages.insert(0, {
-                              'type': 'imageStatistic',
-                              'imageStatistic': imageUrls, // Lưu danh sách ảnh
-                            });
-                          } else {
-                            messages.insert(0, {
-                              'type': 'image',
-                              'imageStatistic': imageUrls, // Lưu danh sách ảnh
-                            });
-                          }
-                        }
-                      } else {
-                        // Nếu không phải ảnh, thêm nội dung bình thường
+                      if (imageUrls.isNotEmpty) {
+                        messages.insert(0, {
+                          'type': 'imageStatistic',
+                          'imageStatistic': imageUrls,
+                        });
+                      }
+
+                      if (textContent.trim().isNotEmpty) {
                         if (messages.isEmpty || messages[0]['type'] != 'bot') {
-                          messages.insert(0, {'type': 'bot', 'text': ''});
-                        } else {
-                          messages[0]['text'] += content;
+                          messages
+                              .insert(0, {'type': 'bot', 'text': textContent});
                         }
+                        messages[0]['text'] =
+                            fullContent.toString(); // 🔹 Cập nhật nội dung
                       }
                     });
                   }
