@@ -20,7 +20,7 @@ class BodyChatbotAnswer {
   final List<Map<String, dynamic>>
       slotsConfig; // Changed to List<Map<String, dynamic>> for better type safety
   final String systemPrompt;
-  final double temperature;
+  final int temperature;
   final double threadHold;
   final int topCount;
   final String type;
@@ -81,7 +81,7 @@ class BodyChatbotAnswer {
           .map((item) => Map<String, dynamic>.from(item))
           .toList(),
       systemPrompt: json['system_prompt'] ?? '',
-      temperature: (json['temperature'] ?? 0).toDouble(),
+      temperature: (json['temperature'] ?? 0),
       threadHold: (json['thread_hold'] ?? 0).toDouble(),
       topCount: json['top_count'] ?? 0,
       type: json['type'] ?? '',

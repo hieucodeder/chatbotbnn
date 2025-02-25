@@ -10,8 +10,6 @@ class Providercolor with ChangeNotifier {
     _loadColorFromPrefs();
   }
 
-  get se => null;
-
   void changeColor(Color color) {
     _selectedColor = color;
     notifyListeners();

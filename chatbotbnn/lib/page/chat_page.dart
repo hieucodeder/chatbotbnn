@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/body_suggestion.dart';
+import 'package:chatbotbnn/model/chatbot_config.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
 import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
@@ -7,6 +10,7 @@ import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
 import 'package:chatbotbnn/service/anwser_number.dart';
 import 'package:chatbotbnn/service/answer_pqnew_service.dart';
+import 'package:chatbotbnn/service/chatbot_config_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
 import 'package:chatbotbnn/service/history_service.dart';
 import 'package:chatbotbnn/service/suggestion_service.dart';
@@ -39,7 +43,7 @@ class _ChatPageState extends State<ChatPage> {
   late HistoryidProvider _historyidProvider;
   ChatProvider? _chatProvider;
   List<String> _suggestions = [];
-
+  late Future<HistoryAllModel> _historyAllModel;
   @override
   void initState() {
     super.initState();
@@ -49,8 +53,7 @@ class _ChatPageState extends State<ChatPage> {
     _chatProvider = Provider.of<ChatProvider>(context, listen: false);
     Provider.of<ChatProvider>(context, listen: false)
         .loadInitialMessage(context);
-    // _loadInitialMessage();
-    // getSuggestions();
+    loadChatbotConfig();
   }
 
   @override
@@ -60,24 +63,45 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  // Future<void> _loadInitialMessage() async {
-  //   final chatbotCode =
-  //       Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+  Future<DataConfig?> loadChatbotConfig() async {
+    final chatbotCode =
+        Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+    try {
+      List<DataConfig> chatbotConfig = await fetchChatbotConfig(chatbotCode!);
 
-  //   if (chatbotCode != null) {
-  //     final chatbotData = await fetchGetCodeModel(chatbotCode);
-  //     if (chatbotData != null) {
-  //       setState(() {
-  //         _initialMessage = chatbotData.initialMessages;
-  //         _messages = [];
-  //         _messages.add({
-  //           'type': 'bot',
-  //           'text': _initialMessage ?? 'Lỗi',
-  //         });
-  //       });
-  //     } else {}
-  //   } else {}
-  // }
+      if (chatbotConfig.isEmpty) {
+        throw Exception('❌ Không tìm thấy cấu hình chatbot.');
+      }
+
+      final config = chatbotConfig.first;
+      return config;
+    } catch (error) {
+      debugPrint("❌ Lỗi khi tải cấu hình chatbot: $error");
+      return null;
+    }
+  }
+
+  void _fetchHistoryAllModel(BuildContext context) async {
+    final chatbotCode =
+        Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+
+    final historyidProvider =
+        Provider.of<HistoryidProvider>(context, listen: false);
+
+    try {
+      final historyAllModel = await fetchChatHistoryAll(chatbotCode, "", "");
+
+      // Nếu có dữ liệu, lưu vào Provider
+      if (historyAllModel.data != null && historyAllModel.data!.isNotEmpty) {
+        final chatbotHistoryId =
+            historyAllModel.data![0].chatbotHistoryId?.toString() ?? "";
+
+        historyidProvider.setChatbotHistoryId(chatbotHistoryId);
+      }
+    } catch (e) {
+      print("Error fetching chat history: $e");
+    }
+  }
 
   void _sendMessage() async {
     final chatbotCode =
@@ -108,20 +132,22 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     _controller.clear();
+    // Lấy cấu hình chatbot
+    DataConfig? chatbotConfig = await loadChatbotConfig();
+
+    if (chatbotConfig == null) {
+      debugPrint("⚠️ Không thể tải cấu hình chatbot.");
+      return;
+    }
 
     Future<void> getSuggestions() async {
-      print("✅ getSuggestions() is running...");
-
       String savedInstructions = temporaryData ?? "";
-      print("📌 savedInstructions: $savedInstructions");
 
       BodySuggestion body = BodySuggestion(
         query: userQuery,
         prompt: savedInstructions,
         genmodel: "gpt-4o-mini",
       );
-
-      print("📤 Sending request with body: ${body.toJson()}");
 
       try {
         List<String>? suggestions = await fetchSuggestions(body);
@@ -140,33 +166,14 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     bool isNewSession = historyId.isEmpty;
-    String customizePrompt = "";
-    String fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
 
-    if (chatbotName.trim().toLowerCase() == "trợ lý ai thống kê số liệu") {
-      customizePrompt =
-          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
-      // fallbackResponse = "Xin lỗi, tôi chưa có câu trả lời!";
-    }
-    if (chatbotName.trim().toLowerCase() == "trợ lý ai văn bản pháp quy") {
-      customizePrompt =
-          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
-      // fallbackResponse =
-      //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các thông tư, nghị định, quyết định và nghị quyết, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
-    } else if (chatbotName.trim().toLowerCase() ==
-        "trợ lý ai kinh tế hợp tác") {
-      customizePrompt =
-          "-Goal-\nProvide necessary about legal base on some relevant context below. Because it is legal, so must true and detail.\n\n-Steps-\n1. Answer user command:\n- If the query is a greeting or farewell, respond concisely user's query.\n- Thoroughly comprehend the user's command and the relevant context provided. Ensure no assumptions are made beyond the given information to make a response.\n- If has no context to answer user command (very strict because it's legal problem) or have no <context relevant>, use a fallback response to politely inform the user. (Do not misleading concept shift)\n- Answer politely, in detail, and drawing from context and old conversation.\n- Pair has image or table, show this when match with user command.\n- At the end of your response:\n\t+ If don't have <context relevant> don't give this\n\t+ Include a detailed reference section listing all relevant legal documents (such as decrees, circulars, decisions, resolutions, etc.). For each document, provide the full title, document number, chapter, article, and section (if applicable) that are directly related to the context of the output (DON'T MAKE FABRICATE).\n\t+ Give source link to user if relevant text catch the user command.\n- May ask user for deeper information they should ask or you unknow about user command.\n- Highlight important things that might be interesting.\n- Show table with chatgpt format if output need it.";
-      // fallbackResponse =
-      //     "Tôi chưa có câu trả lời cho câu hỏi $userQuery, hãy hỏi tôi về các báo cáo, tôi sẽ cung cấp thông tin chi tiết cho bạn bạn bất cứ lúc nào!";
-    }
     BodyChatbotAnswer chatbotRequest = BodyChatbotAnswer(
-      chatbotCode: chatbotCode,
-      chatbotName: chatbotName,
-      collectionName: chatbotCode,
-      customizePrompt: customizePrompt,
-      fallbackResponse: fallbackResponse,
-      genModel: "gpt-4o-mini",
+      chatbotCode: chatbotConfig.chatbotCode ?? '',
+      chatbotName: chatbotConfig.chatbotName ?? '',
+      collectionName: chatbotConfig.collectionName ?? '',
+      customizePrompt: chatbotConfig.promptContent ?? '',
+      fallbackResponse: chatbotConfig.fallbackResponse ?? '',
+      genModel: chatbotConfig.modelGenerate ?? '',
       history: List.from(tempHistory),
       historyId: isNewSession ? "" : historyId,
       intentQueue: [],
@@ -174,20 +181,19 @@ class _ChatPageState extends State<ChatPage> {
       language: "Vietnamese",
       platform: "",
       query: userQuery,
-      rerankModel: "gpt-4o-mini",
-      rewriteModel: "gpt-4o-mini",
+      rerankModel: chatbotConfig.modelRerank ?? '',
+      rewriteModel: chatbotConfig.queryRewrite ?? '',
       slots: [],
       slotsConfig: [],
-      systemPrompt:
-          "You are a highly knowledgeable virtual assistant specializing in providing detailed and insightful answers to user questions across various fields. Your role is to interact with users in a friendly manner, ensure you understand their questions, and deliver the most relevant information.",
-      temperature: 0,
-      threadHold: 0.8,
-      topCount: 3,
+      systemPrompt: chatbotConfig.systemPrompt ?? '',
+      temperature: chatbotConfig.temperature ?? 0,
+      threadHold: chatbotConfig.threadHold ?? 0.8,
+      topCount: chatbotConfig.topCount ?? 3,
       type: "normal",
       userId: userId,
-      userIndustry: "",
+      userIndustry: chatbotConfig.userIndustry ?? '',
     );
-    // debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
+    debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
 
     try {
       String? response;
@@ -248,7 +254,7 @@ class _ChatPageState extends State<ChatPage> {
           (extraData) {
             if (extraData is List<String> && extraData.isNotEmpty) {
               setState(() {
-                getSuggestions();
+                // getSuggestions();
               });
             }
           },
@@ -257,6 +263,9 @@ class _ChatPageState extends State<ChatPage> {
 
       setState(() {
         _isLoading = false;
+        final historyidProvider =
+            Provider.of<HistoryidProvider>(context, listen: false);
+        String historyId = historyidProvider.chatbotHistoryId;
         if (response != null) {
           if (_messages.isEmpty ||
               (_messages[0]['type'] == 'bot' &&
@@ -272,20 +281,23 @@ class _ChatPageState extends State<ChatPage> {
               'table': table,
               'imageStatistic': images,
             });
+            if (historyId.isEmpty) {
+              _fetchHistoryAllModel(context);
+            }
           }
 
           if (suggestions.isNotEmpty) {
             _suggestions = suggestions; // Cập nhật danh sách gợi ý vào state
           }
-
-          //   loadChatHistoryId(context, chatbotCode);
-          // }
         }
         if (responsepq != null && responsepq.trim().isNotEmpty) {
           _messages.insert(0, {
             'type': 'bot',
             'text': responsepq,
           });
+        }
+        if (historyId.isEmpty) {
+          _fetchHistoryAllModel(context);
         }
       });
       getSuggestions();
@@ -302,46 +314,38 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  void loadChatHistoryId(BuildContext context, String chatbotCode) async {
-    debugPrint("🔍 Starting loadChatHistoryId...");
-
-    try {
-      HistoryAllModel historyData =
-          await fetchChatHistoryAll(chatbotCode, null, null);
-      debugPrint("📥 Fetched history data: ${historyData.toJson()}");
-
-      int? historyId = int.tryParse(
-          Provider.of<HistoryidProvider>(context, listen: false)
-              .chatbotHistoryId);
-
-      if (historyId != null && historyId > 0) {
-        Provider.of<HistoryidProvider>(context, listen: false)
-            .setChatbotHistoryId(historyId.toString());
-      } else {
-        debugPrint("⚠ No valid history data found in Provider.");
-      }
-    } catch (e, stackTrace) {
-      debugPrint("❌ Error in loadChatHistoryId: $e");
-      debugPrint("🛑 StackTrace: $stackTrace");
-    }
-  }
-
   Future<void> fetchAndUpdateChatHistory() async {
     if (!mounted) return;
 
-    final historyId =
-        Provider.of<HistoryidProvider>(context, listen: false).chatbotHistoryId;
-    String historyIdStr = historyId?.toString() ?? "";
+    final historyidProvider =
+        Provider.of<HistoryidProvider>(context, listen: false);
+    final newHistoryId = historyidProvider.chatbotHistoryId;
+
+    // Nếu không có lịch sử chat, không cần fetch
+    if (newHistoryId.isEmpty) {
+      debugPrint("⚠️ No chatbot history ID available.");
+      return;
+    }
+
+    // Kiểm tra nếu không có thay đổi ID, tránh load lại không cần thiết
+    if (_messages.isNotEmpty &&
+        historyidProvider.previousHistoryId == newHistoryId) {
+      debugPrint("🔄 No changes in history ID, skipping fetch.");
+      return;
+    }
 
     try {
+      debugPrint("📡 Fetching chat history for ID: $newHistoryId");
+
+      // Lấy dữ liệu tin nhắn từ API
       List<Map<String, dynamic>> contents =
-          await fetchChatHistory(historyIdStr);
-      debugPrint("💬 Retrieved chat history: $historyIdStr");
+          await fetchChatHistory(newHistoryId);
 
       if (!mounted) return;
 
       setState(() {
-        _messages.clear();
+        _messages.clear(); // Xóa tin nhắn cũ trước khi cập nhật
+
         for (var content in contents) {
           List<dynamic> images = [];
 
@@ -367,6 +371,9 @@ class _ChatPageState extends State<ChatPage> {
           });
         }
       });
+
+      // Cập nhật lại `previousHistoryId` sau khi tải xong
+      historyidProvider.setChatbotHistoryId(newHistoryId);
     } catch (e, stackTrace) {
       debugPrint("❌ Error in fetchAndUpdateChatHistory: $e");
       debugPrint("🛑 StackTrace: $stackTrace");

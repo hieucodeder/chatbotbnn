@@ -64,7 +64,6 @@ class _AppScreenState extends State<AppScreen> {
         return 'DANH SÁCH TRỢ LÝ AI';
       case 2:
         return 'CÀI ĐẶT';
-
       default:
         return 'activity_report';
     }

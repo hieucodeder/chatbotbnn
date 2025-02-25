@@ -40,31 +40,25 @@ Future<HistoryAllModel> fetchChatHistoryAll(
       body: body,
     );
 
-    // Check the response status
+    // Parse the response body to HistoryAllModel
+    final Map<String, dynamic> responseData = jsonDecode(response.body);
+    HistoryAllModel historyAllModel = HistoryAllModel.fromJson(responseData);
+
+    // Lưu chatbotHistoryId vào SharedPreferences ngay sau khi nhận phản hồi
+    if (historyAllModel.data != null && historyAllModel.data!.isNotEmpty) {
+      final chatbotHistoryId = historyAllModel.data![0].chatbotHistoryId ?? 0;
+      await prefs.setInt('chatbot_history_id', chatbotHistoryId);
+    }
+
+    // Kiểm tra response thành công
     if (response.statusCode == 200) {
-      // Parse the response body to HistoryAllModel
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
-      HistoryAllModel historyAllModel = HistoryAllModel.fromJson(responseData);
-
-      // Check if data is not null and not empty
-      if (historyAllModel.data != null && historyAllModel.data!.isNotEmpty) {
-        // Get the chatbotHistoryId from the first Data item in the list
-        final chatbotHistoryId = historyAllModel.data![0].chatbotHistoryId;
-
-        // Store the chatbotHistoryId in SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('chatbot_history_id', chatbotHistoryId ?? 0);
-      }
-
       return historyAllModel;
     } else {
-      // Handle error responses with descriptive messages
       final String errorMessage = 'Failed to fetch chat history. '
           'Status code: ${response.statusCode}, Body: ${response.body}';
       throw Exception(errorMessage);
     }
   } catch (e) {
-    // Catch and rethrow errors with a custom message for debugging
     throw Exception('An error occurred while fetching chat history: $e');
   }
 }

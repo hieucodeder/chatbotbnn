@@ -26,6 +26,7 @@ class LoginService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userid', account.userId!);
+        await prefs.setString('username', account.username!);
         await prefs.setString('full_name', account.fullName!);
         await prefs.setString('email', account.email!);
         await prefs.setString('token', account.token!);

@@ -1,9 +1,13 @@
+import 'package:chatbotbnn/model/body_forget_password.dart';
+import 'package:chatbotbnn/model/respone_forgetpassword.dart';
 import 'package:chatbotbnn/page/login_page.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/service/forget_password_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -73,6 +77,132 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
+  TextEditingController oldPasswordController = TextEditingController();
+  TextEditingController newPasswordController = TextEditingController();
+  TextEditingController confirmPasswordController = TextEditingController();
+  void showChangePasswordDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Đổi mật khẩu"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPasswordController,
+                decoration: const InputDecoration(
+                  labelText: "Nhập mật khẩu cũ",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: newPasswordController,
+                decoration: const InputDecoration(
+                  labelText: "Nhập mật khẩu mới",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: confirmPasswordController,
+                decoration: const InputDecoration(
+                  labelText: "Xác nhận mật khẩu mới",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Hủy"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Đóng bàn phím nếu đang mở
+                FocusScope.of(context).unfocus();
+
+                String oldPassword = oldPasswordController.text.trim();
+                String newPassword = newPasswordController.text.trim();
+                String confirmPassword = confirmPasswordController.text.trim();
+
+                if (oldPassword.isEmpty ||
+                    newPassword.isEmpty ||
+                    confirmPassword.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Vui lòng nhập đầy đủ thông tin")),
+                  );
+                  return;
+                }
+
+                if (newPassword.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Mật khẩu mới phải có ít nhất 6 ký tự")),
+                  );
+                  return;
+                }
+
+                if (newPassword != confirmPassword) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Mật khẩu mới không trùng khớp")),
+                  );
+                  return;
+                }
+
+                // Gọi hàm xử lý đổi mật khẩu
+                handleForgetPassword(context);
+              },
+              child: const Text("Lưu"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void handleForgetPassword(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString('userid');
+    String? userName = prefs.getString('username');
+
+    BodyForgetPassword requestBody = BodyForgetPassword(
+      passwordHash: oldPasswordController.text.trim(),
+      newPassword: newPasswordController.text.trim(),
+      newConfirmPassword: confirmPasswordController.text.trim(),
+      username: userName,
+      userId: userId,
+    );
+
+    ResponeForgetpassword response = await forgetPassword(requestBody);
+
+    if (response.results == true) {
+      print("Thành công: ${response.message}");
+
+      // Xóa dữ liệu phiên đăng nhập
+      await prefs.clear();
+
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (Route<dynamic> route) => false);
+    } else {
+      print("Thất bại: ${response.message}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Lỗi: ${response.message}")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Provider.of<NavigationProvider>(context);
@@ -110,7 +240,7 @@ class _SettingPageState extends State<SettingPage> {
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
-                    navigationProvider.setCurrentIndex(5);
+                    showChangePasswordDialog(context);
                   },
                   child: Text('Đổi mật khẩu', style: styleText),
                 ),
