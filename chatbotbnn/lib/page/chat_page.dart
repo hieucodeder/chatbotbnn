@@ -16,6 +16,7 @@ import 'package:chatbotbnn/service/history_service.dart';
 import 'package:chatbotbnn/service/suggestion_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:photo_view/photo_view.dart';
@@ -54,6 +55,7 @@ class _ChatPageState extends State<ChatPage> {
     Provider.of<ChatProvider>(context, listen: false)
         .loadInitialMessage(context);
     loadChatbotConfig();
+    // _fetchHistoryAllModel(context);
   }
 
   @override
@@ -63,9 +65,29 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
+  void _fetchHistoryAllModel(BuildContext context) async {
+    final chatbotCode = context.read<ChatbotProvider>().currentChatbotCode;
+    final historyidProvider = context.read<HistoryidProvider>();
+
+    try {
+      final historyAllModel = await fetchChatHistoryAll(chatbotCode, "", "");
+
+      if (historyAllModel.data != null && historyAllModel.data!.isNotEmpty) {
+        final chatbotHistoryId =
+            historyAllModel.data![0].chatbotHistoryId?.toString() ?? "";
+
+        // Cập nhật ID mà không gọi notifyListeners()
+        historyidProvider.setChatbotHistoryIdWithoutNotify(chatbotHistoryId);
+      }
+    } catch (e) {
+      print("Error fetching chat history: $e");
+    }
+  }
+
   Future<DataConfig?> loadChatbotConfig() async {
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+
     try {
       List<DataConfig> chatbotConfig = await fetchChatbotConfig(chatbotCode!);
 
@@ -78,28 +100,6 @@ class _ChatPageState extends State<ChatPage> {
     } catch (error) {
       debugPrint("❌ Lỗi khi tải cấu hình chatbot: $error");
       return null;
-    }
-  }
-
-  void _fetchHistoryAllModel(BuildContext context) async {
-    final chatbotCode =
-        Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
-
-    final historyidProvider =
-        Provider.of<HistoryidProvider>(context, listen: false);
-
-    try {
-      final historyAllModel = await fetchChatHistoryAll(chatbotCode, "", "");
-
-      // Nếu có dữ liệu, lưu vào Provider
-      if (historyAllModel.data != null && historyAllModel.data!.isNotEmpty) {
-        final chatbotHistoryId =
-            historyAllModel.data![0].chatbotHistoryId?.toString() ?? "";
-
-        historyidProvider.setChatbotHistoryId(chatbotHistoryId);
-      }
-    } catch (e) {
-      print("Error fetching chat history: $e");
     }
   }
 
@@ -174,7 +174,9 @@ class _ChatPageState extends State<ChatPage> {
       customizePrompt: chatbotConfig.promptContent ?? '',
       fallbackResponse: chatbotConfig.fallbackResponse ?? '',
       genModel: chatbotConfig.modelGenerate ?? '',
-      history: List.from(tempHistory),
+      history: (chatbotConfig.history == null || chatbotConfig.history!.isEmpty)
+          ? ''
+          : "",
       historyId: isNewSession ? "" : historyId,
       intentQueue: [],
       isNewSession: isNewSession,
@@ -191,9 +193,9 @@ class _ChatPageState extends State<ChatPage> {
       topCount: chatbotConfig.topCount ?? 3,
       type: "normal",
       userId: userId,
-      userIndustry: chatbotConfig.userIndustry ?? '',
+      userIndustry: "",
     );
-    debugPrint("📢 Request Body: historyId=${chatbotRequest.toJson()}");
+    debugPrint("📢 Request Body: historyId=${chatbotRequest.history}");
 
     try {
       String? response;
@@ -213,6 +215,11 @@ class _ChatPageState extends State<ChatPage> {
                 suggestions = (extraData['suggestion'] as List<dynamic>)
                     .map((e) => e.toString())
                     .toList();
+                if (suggestions.isNotEmpty) {
+                  setState(() {
+                    _suggestions = suggestions;
+                  });
+                }
               }
 
               if (extraData.containsKey('table')) {
@@ -246,19 +253,18 @@ class _ChatPageState extends State<ChatPage> {
         );
       } else if ((chatbotName.trim().toLowerCase() ==
               "trợ lý ai văn bản pháp quy") ||
-          chatbotName.trim().toLowerCase() == "trợ lý ai kinh tế hợp tác") {
+          chatbotName.trim().toLowerCase() == "trợ lý kinh tế hợp tác") {
         responsepq = await fetchApiResponsePqNew(
           chatbotRequest,
           setState,
           _messages,
           (extraData) {
             if (extraData is List<String> && extraData.isNotEmpty) {
-              setState(() {
-                // getSuggestions();
-              });
+              setState(() {});
             }
           },
         );
+        getSuggestions();
       }
 
       setState(() {
@@ -270,11 +276,9 @@ class _ChatPageState extends State<ChatPage> {
           if (_messages.isEmpty ||
               (_messages[0]['type'] == 'bot' &&
                   _messages[0]['text'] == 'response')) {
-            // Nếu phản hồi đã có, chỉ cập nhật dữ liệu bảng và ảnh
             _messages[0]['table'] = table;
             _messages[0]['imageStatistic'] = images;
           } else {
-            // Nếu chưa có phản hồi, chèn mới vào danh sách
             _messages.insert(0, {
               'type': 'bot',
               'text': '',
@@ -282,12 +286,21 @@ class _ChatPageState extends State<ChatPage> {
               'imageStatistic': images,
             });
             if (historyId.isEmpty) {
-              _fetchHistoryAllModel(context);
+              //gọi hàm mà không cập nhật UI
+              Future.microtask(() => _fetchHistoryAllModel(context));
             }
-          }
+            // Cuộn xuống cuối cùng sau khi danh sách tin nhắn cập nhật
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollController.animateTo(
+                _scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            });
 
-          if (suggestions.isNotEmpty) {
-            _suggestions = suggestions; // Cập nhật danh sách gợi ý vào state
+            // if (suggestions.isNotEmpty) {
+            //   _suggestions = suggestions;
+            // }
           }
         }
         if (responsepq != null && responsepq.trim().isNotEmpty) {
@@ -295,12 +308,74 @@ class _ChatPageState extends State<ChatPage> {
             'type': 'bot',
             'text': responsepq,
           });
-        }
-        if (historyId.isEmpty) {
-          _fetchHistoryAllModel(context);
+
+          if (historyId.isEmpty) {
+            //gọi hàm mà không cập nhật UI
+            Future.microtask(() => _fetchHistoryAllModel(context));
+          }
+
+          // Cuộn xuống cuối cùng sau khi danh sách tin nhắn cập nhật
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          });
         }
       });
-      getSuggestions();
+      // setState(() {
+      //   _isLoading = false;
+      //   final historyidProvider =
+      //       Provider.of<HistoryidProvider>(context, listen: false);
+      //   String historyId = historyidProvider.chatbotHistoryId;
+
+      //   // Kiểm tra xem có response hoặc responsepq không
+      //   if (response != null ||
+      //       (responsepq != null && responsepq.trim().isNotEmpty)) {
+      //     Map<String, dynamic> botMessage = {
+      //       'type': 'bot',
+      //       'text': responsepq?.trim() ?? '',
+      //     };
+
+      //     if (response != null) {
+      //       botMessage['table'] = table;
+      //       botMessage['imageStatistic'] = images;
+      //     }
+
+      //     if (_messages.isEmpty ||
+      //         (_messages[0]['type'] == 'bot' &&
+      //             _messages[0]['text'] == 'response')) {
+      //       _messages[0] = botMessage;
+      //     } else {
+      //       _messages.insert(0, botMessage);
+      //     }
+
+      //     // Cập nhật danh sách gợi ý nếu có
+      //     if (suggestions.isNotEmpty) {
+      //       _suggestions = suggestions;
+      //     }
+
+      //     // Nếu có responsepq, gọi getSuggestions()
+      //     if (responsepq != null && responsepq.trim().isNotEmpty) {
+      //       getSuggestions();
+      //     }
+      //   }
+
+      //   // Nếu historyId rỗng, gọi _fetchHistoryAllModel
+      //   if (historyId.isEmpty) {
+      //     Future.microtask(() => _fetchHistoryAllModel(context));
+      //   }
+
+      //   // Cuộn xuống cuối cùng sau khi danh sách tin nhắn cập nhật
+      //   WidgetsBinding.instance.addPostFrameCallback((_) {
+      //     _scrollController.animateTo(
+      //       _scrollController.position.maxScrollExtent,
+      //       duration: const Duration(milliseconds: 300),
+      //       curve: Curves.easeOut,
+      //     );
+      //   });
+      // });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -367,7 +442,15 @@ class _ChatPageState extends State<ChatPage> {
             'type': 'bot',
             'text': content['text'] ?? "",
             'table': content['table'] as List<Map<String, dynamic>>?,
-            'imageStatistic': images, // Danh sách link ảnh
+            'imageStatistic': images,
+          });
+          // Cuộn xuống cuối cùng sau khi danh sách tin nhắn cập nhật
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
           });
         }
       });
@@ -456,10 +539,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _scrollToBottom() {
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     });
@@ -491,6 +574,7 @@ class _ChatPageState extends State<ChatPage> {
                 final message = _messages[_messages.length - 1 - index];
 
                 final isUser = message['type'] == 'user';
+                final bot = message['type'] == 'bot';
                 // final String? imageUrl = message['image'];
                 List<Map<String, dynamic>>? table = message['table'];
                 List<String> columns = [];
@@ -498,187 +582,228 @@ class _ChatPageState extends State<ChatPage> {
                   columns = table.first.keys.toList();
                 }
 
-                return Row(
-                  mainAxisAlignment:
-                      isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // if (!isUser && message.containsKey('image'))r
-                    //   CircleAvatar(
-                    //     backgroundImage: imageUrl!.startsWith('http')
-                    //         ? NetworkImage(imageUrl)
-                    //         : AssetImage(imageUrl) as ImageProvider,
-                    //     radius: 20,
-                    //     backgroundColor: Colors.transparent,
-                    //   ),
-                    Flexible(
-                      child: Column(
-                        children: [
-                          Visibility(
-                            visible: message['text']?.isNotEmpty ?? false,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 5),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isUser ? selectColors : Colors.grey[300],
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(10),
-                                  bottomRight: Radius.circular(10),
-                                ),
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  // children: _parseMessage(message['text']!),
-                                  children:
-                                      _parseMessage(message['text'] ?? ''),
-                                ),
-                                style: GoogleFonts.robotoCondensed(
-                                  fontSize: 15,
-                                  color: isUser ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (table != null &&
-                              table is List &&
-                              (table as List<Map<String, dynamic>>).isNotEmpty)
-                            SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: DataTable(
-                                  columns: [
-                                    DataColumn(
-                                      label: Text(
-                                        "STT",
-                                        style: textChatbotTable,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    ...columns.map((col) => DataColumn(
-                                          label: Text(
-                                            col,
-                                            style: textChatbotTable,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ))
-                                  ],
-                                  rows: table!
-                                      .asMap()
-                                      .entries
-                                      .map<DataRow>((entry) {
-                                    int index = entry.key + 1; // Đánh số thứ tự
-                                    Map<String, dynamic> row = entry.value;
-                                    return DataRow(
-                                      cells: [
-                                        DataCell(
-                                          SizedBox(
-                                            width: 40,
-                                            child: Center(
-                                              child: Text(
-                                                index.toString(),
-                                                style: textChatBot,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        ...columns.map((col) {
-                                          var value = row[col];
-                                          String displayValue;
+                return Align(
+                  alignment: isUser
+                      ? Alignment.centerRight
+                      : Alignment
+                          .centerLeft, // Canh phải cho user, trái cho bot
 
-                                          // Kiểm tra nếu giá trị là số thì làm tròn đến 2 chữ số thập phân
-                                          if (value is double) {
-                                            displayValue =
-                                                value.toStringAsFixed(2);
-                                          } else {
-                                            displayValue = value.toString();
-                                          }
-
-                                          return DataCell(
-                                            Center(
-                                              child: Text(
-                                                displayValue,
-                                                style: textChatBot,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ],
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
-                          if (message['imageStatistic'] != null &&
-                              message['imageStatistic'] is List<String> &&
-                              message['imageStatistic'].isNotEmpty)
-                            ...(message['imageStatistic'] as List<String>)
-                                .map<Widget>((imageUrl) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) => Dialog(
-                                          backgroundColor: Colors.transparent,
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            child: SizedBox(
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.9,
-                                              height: MediaQuery.of(context)
-                                                      .size
-                                                      .height *
-                                                  0.7,
-                                              child: PhotoView(
-                                                imageProvider: NetworkImage(
-                                                    imageUrl), // Sử dụng imageUrl thay vì image.path
-                                                backgroundDecoration:
-                                                    const BoxDecoration(
-                                                        color: Colors.white),
-                                                minScale: PhotoViewComputedScale
-                                                    .contained,
-                                                maxScale: PhotoViewComputedScale
-                                                        .covered *
-                                                    2.0,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 5),
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: isUser
-                                            ? selectColors
-                                            : Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                            width: 2,
-                                            color:
-                                                Colors.grey.withOpacity(0.3)),
-                                      ),
-                                      child: Image.network(
-                                          imageUrl), // Sử dụng imageUrl thay vì image.path!
-                                    ),
+                  child: Row(
+                    mainAxisAlignment: isUser
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Flexible(
+                        child: Column(
+                          children: [
+                            Visibility(
+                              visible: message['text']?.isNotEmpty ?? false,
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(vertical: 5),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isUser ? selectColors : Colors.grey[300],
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(10),
+                                    topRight: const Radius.circular(10),
+                                    bottomLeft: isUser
+                                        ? const Radius.circular(10)
+                                        : Radius.zero,
+                                    bottomRight: isUser
+                                        ? Radius.zero
+                                        : const Radius.circular(10),
                                   ),
-                                ],
-                              );
-                            }).toList(),
-                        ],
+                                ),
+                                child: Text.rich(
+                                  TextSpan(
+                                    // children: _parseMessage(message['text']!),
+                                    children:
+                                        _parseMessage(message['text'] ?? ''),
+                                  ),
+                                  style: GoogleFonts.robotoCondensed(
+                                    fontSize: 15,
+                                    color: isUser ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // if (!isUser)
+                            //   Row(
+                            //     children: [
+                            //       Row(
+                            //         children: [
+                            //           GestureDetector(
+                            //             onTap: () {
+                            //               Clipboard.setData(ClipboardData(
+                            //                   text: message['text'] ?? ''));
+                            //               ScaffoldMessenger.of(context)
+                            //                   .showSnackBar(
+                            //                 const SnackBar(
+                            //                     content: Text(
+                            //                         'Đã sao chép vào clipboard!')),
+                            //               );
+                            //             },
+                            //             child: const Row(
+                            //               mainAxisSize: MainAxisSize.min,
+                            //               children: [
+                            //                 Icon(Icons.copy,
+                            //                     size: 18, color: Colors.grey),
+                            //                 SizedBox(width: 4),
+                            //               ],
+                            //             ),
+                            //           ),
+                            //         ],
+                            //       ),
+                            //     ],
+                            //   ),
+                            if (table != null &&
+                                table is List &&
+                                (table as List<Map<String, dynamic>>)
+                                    .isNotEmpty)
+                              SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: DataTable(
+                                    columns: [
+                                      DataColumn(
+                                        label: Text(
+                                          "STT",
+                                          style: textChatbotTable,
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                      ...columns.map((col) => DataColumn(
+                                            label: Text(
+                                              col,
+                                              style: textChatbotTable,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ))
+                                    ],
+                                    rows: table!
+                                        .asMap()
+                                        .entries
+                                        .map<DataRow>((entry) {
+                                      int index =
+                                          entry.key + 1; // Đánh số thứ tự
+                                      Map<String, dynamic> row = entry.value;
+                                      return DataRow(
+                                        cells: [
+                                          DataCell(
+                                            SizedBox(
+                                              width: 40,
+                                              child: Center(
+                                                child: Text(
+                                                  index.toString(),
+                                                  style: textChatBot,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          ...columns.map((col) {
+                                            var value = row[col];
+                                            String displayValue;
+
+                                            // Kiểm tra nếu giá trị là số thì làm tròn đến 2 chữ số thập phân
+                                            if (value is double) {
+                                              displayValue =
+                                                  value.toStringAsFixed(2);
+                                            } else {
+                                              displayValue = value.toString();
+                                            }
+
+                                            return DataCell(
+                                              Center(
+                                                child: Text(
+                                                  displayValue,
+                                                  style: textChatBot,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            if (message['imageStatistic'] != null &&
+                                message['imageStatistic'] is List<String> &&
+                                message['imageStatistic'].isNotEmpty)
+                              ...(message['imageStatistic'] as List<String>)
+                                  .map<Widget>((imageUrl) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => Dialog(
+                                            backgroundColor: Colors.transparent,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: SizedBox(
+                                                width: MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                    0.9,
+                                                height: MediaQuery.of(context)
+                                                        .size
+                                                        .height *
+                                                    0.7,
+                                                child: PhotoView(
+                                                  imageProvider: NetworkImage(
+                                                      imageUrl), // Sử dụng imageUrl thay vì image.path
+                                                  backgroundDecoration:
+                                                      const BoxDecoration(
+                                                          color: Colors.white),
+                                                  minScale:
+                                                      PhotoViewComputedScale
+                                                          .contained,
+                                                  maxScale:
+                                                      PhotoViewComputedScale
+                                                              .covered *
+                                                          2.0,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 5),
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: isUser
+                                              ? selectColors
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              width: 2,
+                                              color:
+                                                  Colors.grey.withOpacity(0.3)),
+                                        ),
+                                        child: Image.network(
+                                            imageUrl), // Sử dụng imageUrl thay vì image.path!
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               },
             ),
@@ -689,12 +814,12 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  RotationTransition(
-                    turns: const AlwaysStoppedAnimation(45 / 360),
-                    child: Icon(
-                      FontAwesomeIcons.circleNotch,
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
                       color: selectColors,
-                      size: 20.0,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -706,35 +831,6 @@ class _ChatPageState extends State<ChatPage> {
               ),
             ),
           ],
-          // if (_suggestions.isNotEmpty)
-          //   Padding(
-          //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          //     child: SingleChildScrollView(
-          //       scrollDirection: Axis.horizontal,
-          //       child: Row(
-          //         children: _suggestions.map((suggestion) {
-          //           return Padding(
-          //             padding: const EdgeInsets.symmetric(horizontal: 5),
-          //             child: ElevatedButton(
-          //               style: ElevatedButton.styleFrom(
-          //                 backgroundColor: Colors.white,
-          //                 foregroundColor: Colors.black,
-          //                 shape: RoundedRectangleBorder(
-          //                   borderRadius: BorderRadius.circular(20),
-          //                 ),
-          //               ),
-          //               onPressed: () {
-          //                 _controller.text = suggestion; // Đưa gợi ý vào ô nhập
-          //                 // _sendMessage(); // Gửi tin nhắn tự độngfsd
-          //               },
-          //               child: Text(suggestion),
-          //             ),
-          //           );
-          //         }).toList(),
-          //       ),
-          //     ),
-          //   ),
-
           if (_suggestions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -762,7 +858,6 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ),
             ),
-
           Container(
             padding: const EdgeInsets.all(10),
             color: Colors.grey[200],

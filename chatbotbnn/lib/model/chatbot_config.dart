@@ -1,13 +1,32 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+
 class ChatbotConfig {
   List<DataConfig>? data;
 
   ChatbotConfig({this.data});
 
-  factory ChatbotConfig.fromJson(Map<String, dynamic> json) => ChatbotConfig(
-        data: json['data'] != null
-            ? (json['data'] as List).map((v) => DataConfig.fromJson(v)).toList()
-            : null,
-      );
+  factory ChatbotConfig.fromJson(Map<String, dynamic> jsonData) {
+    if (jsonData != null) {
+      // print("History: ");
+      // Map<String, dynamic> data =
+      //     ((jsonData['data'] as List)[0] as Map<String, dynamic>);
+      // print(data);
+      // List<Map<String, dynamic>> historyList =
+      //     List<Map<String, dynamic>>.from(json.decode(data["history"]));
+      // Map<String, d>
+      // print(history.toString());
+      // print(jsonData['data']['history'].runtimeType.toString());
+    }
+    return ChatbotConfig(
+      data: jsonData != null
+          ? (jsonData['data'] as List)
+              .map((v) => DataConfig.fromJson(v))
+              .toList()
+          : null,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'data': data?.map((v) => v.toJson()).toList(),
@@ -112,12 +131,12 @@ class DataConfig {
         'created_at': createdAt,
         'updated_at': updatedAt,
         'slots': slots,
-        'history': history,
+        'history': history.toString(),
         'intentqueue': intentqueue,
         'chatbot_name': chatbotName,
         'prompt_content': promptContent,
         'slots_config': slotsConfig,
-        'customize_prompt': customizePrompt,
+        // 'customize_prompt': customizePrompt,
         'prompt_id': promptId,
       };
 

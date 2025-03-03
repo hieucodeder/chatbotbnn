@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/model/delete_model.dart';
 import 'package:chatbotbnn/model/history_all_model.dart';
+import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
+import 'package:chatbotbnn/provider/config_chat_provider.dart';
 import 'package:chatbotbnn/provider/historyid_provider.dart';
 import 'package:chatbotbnn/provider/provider_color.dart';
+import 'package:chatbotbnn/provider/selected_history_provider.dart';
 import 'package:chatbotbnn/service/app_config.dart';
 import 'package:chatbotbnn/service/delete_service.dart';
 import 'package:chatbotbnn/service/history_all_service.dart';
@@ -31,6 +34,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
   late Future<HistoryAllModel> _historyAllModel;
   TextEditingController startDateController = TextEditingController();
   TextEditingController endDateController = TextEditingController();
+  String? _selectedKey; // Lưu ID của item được chọn
 
   @override
   void initState() {
@@ -273,6 +277,7 @@ class _DrawerCustomState extends State<DrawerCustom> {
   @override
   Widget build(BuildContext context) {
     final selectedColor = Provider.of<Providercolor>(context).selectedColor;
+    final selectedChatProvider = context.watch<SelectedHistoryProvider>();
 
     return Drawer(
       backgroundColor: selectedColor,
@@ -526,49 +531,68 @@ class _DrawerCustomState extends State<DrawerCustom> {
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: contents.length,
                             itemBuilder: (context, index) {
-                              return Container(
-                                width: double.infinity,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  color:
-                                      const Color(0xFF3B3B3B).withOpacity(0.5),
-                                ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 1),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0, vertical: 0),
-                                  tileColor: Colors.grey,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  title: Text(
-                                    contents[index]['value'] ?? '',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.robotoCondensed(
-                                      fontSize: 14.0,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  trailing: GestureDetector(
-                                    onTap: () {
-                                      deleteChatHistory(
-                                          context, contents[index]['key']);
-                                    },
-                                    child: const Icon(
-                                      Icons.more_horiz,
-                                      color: Colors.white,
-                                      size: 20.0,
-                                    ),
-                                  ),
-                                  onTap: () {
-                                    _loadChatHistoryAndNavigate(
-                                        contents[index]['key']);
+                              final String itemKey =
+                                  contents[index]['key'] ?? "";
+                              final bool isSelected =
+                                  selectedChatProvider.selectedChatId ==
+                                      itemKey;
+                              return GestureDetector(
+                                onTap: () {
+                                  selectedChatProvider.setSelectedChatId(
+                                      itemKey); // Lưu vào Provider
+                                  Future.delayed(
+                                      const Duration(milliseconds: 100), () {
+                                    _loadChatHistoryAndNavigate(itemKey);
                                     Navigator.pop(context);
-                                  },
+                                  });
+                                },
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: isSelected
+                                        ? Colors.red.withOpacity(
+                                            0.7) // Giữ màu sau khi chọn
+                                        : const Color(0xFF3B3B3B)
+                                            .withOpacity(0.5),
+                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 1),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0, vertical: 0),
+                                    tileColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    title: Text(
+                                      contents[index]['value'] ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.robotoCondensed(
+                                        fontSize: 14.0,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    trailing: GestureDetector(
+                                      onTap: () {
+                                        deleteChatHistory(
+                                            context, contents[index]['key']);
+                                      },
+                                      child: const Icon(
+                                        Icons.more_horiz,
+                                        color: Colors.white,
+                                        size: 20.0,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      _loadChatHistoryAndNavigate(
+                                          contents[index]['key']);
+                                      Navigator.pop(context);
+                                    },
+                                  ),
                                 ),
                               );
                             },
@@ -597,10 +621,12 @@ class _DrawerCustomState extends State<DrawerCustom> {
           IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
             iconSize: 23,
-            onPressed: () => widget.onItemSelected(3),
+            onPressed: () => Navigator.pop(context),
           ),
           IconButton(
               onPressed: () {
+                Provider.of<ChatProvider>(context, listen: false)
+                    .loadInitialMessage(context);
                 Navigator.pop(context);
               },
               icon: const Icon(

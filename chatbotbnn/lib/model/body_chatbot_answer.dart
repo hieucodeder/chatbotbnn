@@ -5,7 +5,7 @@ class BodyChatbotAnswer {
   final String customizePrompt;
   final String fallbackResponse;
   final String genModel;
-  final List<Map<String, dynamic>>
+  final String
       history; // Changed to List<Map<String, dynamic>> for better type safety
   final String historyId;
   final List<dynamic> intentQueue;
@@ -63,9 +63,7 @@ class BodyChatbotAnswer {
       customizePrompt: json['customize_prompt'] ?? '',
       fallbackResponse: json['fallback_response'] ?? '',
       genModel: json['genmodel'] ?? '',
-      history: (json['history'] as List<dynamic>? ?? [])
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList(),
+      history: json['history'],
       historyId: json['history_id'] ?? '',
       intentQueue: json['intentqueue'] ?? [],
       language: json['language'] ?? '',

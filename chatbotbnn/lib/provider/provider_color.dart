@@ -18,7 +18,7 @@ class Providercolor with ChangeNotifier {
 
   Future<void> _loadColorFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final colorValue = prefs.getInt('selectedColor') ?? 0xff042E4D;
+    final colorValue = prefs.getInt('selectedColor') ?? 0xFF0D448A;
     _selectedColor = Color(colorValue);
     notifyListeners();
   }

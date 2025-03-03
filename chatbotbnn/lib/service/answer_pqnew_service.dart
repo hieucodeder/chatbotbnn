@@ -31,9 +31,14 @@ Future<String?> fetchApiResponsePqNew(
     // String fullContent = '';
     StringBuffer buffer = StringBuffer();
     StringBuffer temporaryStorage = StringBuffer(); // Lưu hướng dẫn tạm thời
+    List<String> imageUrls = []; // 🔹 Danh sách lưu trữ link ảnh
+
+    // 🔹 Biến lưu trữ URL bị phân mảnh
+    StringBuffer partialUrl = StringBuffer();
+    bool isUrlBuilding = false;
 
     await for (var data in streamedResponse.stream.transform(utf8.decoder)) {
-      debugPrint('Raw response data: $data');
+      // debugPrint('Raw response data: $data');
 
       buffer.write(data);
       List<String> parts = buffer.toString().split('\n');
@@ -61,8 +66,6 @@ Future<String?> fetchApiResponsePqNew(
 
           if (!strData.contains("extraData") && !strData.contains("DONE")) {
             if (strData.startsWith('')) {
-              // Chỉ decode nếu là JSON
-
               try {
                 var jsonData = json.decode(strData);
 
@@ -75,6 +78,18 @@ Future<String?> fetchApiResponsePqNew(
                       String? content = choice['delta']['content'];
                       if (content != null && content.isNotEmpty) {
                         fullContent.write(content);
+
+                        // // 🖼 Xử lý tách URL ảnh từ Markdown bằng RegExp
+                        // final regex = RegExp(
+                        //     r'!\[.*?\]\((https?://[^\)]+\.(?:png|jpg|jpeg|gif))\)');
+                        // final match = regex.firstMatch(content);
+
+                        // if (match != null) {
+                        //   String imageUrl = match.group(1)!; // Lấy URL ảnh
+                        //   if (!imageUrls.contains(imageUrl)) {
+                        //     imageUrls.add(imageUrl);
+                        //   }
+                        // }
 
                         setState(() {
                           if (messages.isEmpty ||
@@ -95,6 +110,13 @@ Future<String?> fetchApiResponsePqNew(
           }
         }
       }
+    }
+    // 🔹 Nếu có ảnh, thêm vào messages
+    if (imageUrls.isNotEmpty) {
+      messages.insert(0, {
+        'type': 'imageStatistic',
+        'imageStatistic': imageUrls,
+      });
     }
     // 🔹 Trả về cả nội dung và hướng dẫn đã lưu
     temporaryData = temporaryStorage.toString();

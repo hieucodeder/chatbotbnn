@@ -17,4 +17,9 @@ class HistoryidProvider with ChangeNotifier {
     _chatbotHistoryId = "";
     notifyListeners();
   }
+
+  // Thêm phương thức không gọi notifyListeners()
+  void setChatbotHistoryIdWithoutNotify(String newId) {
+    _chatbotHistoryId = newId;
+  }
 }

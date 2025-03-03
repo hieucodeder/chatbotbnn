@@ -68,7 +68,7 @@ Future<List<Map<String, dynamic>>> fetchChatHistory(String historyId) async {
         }).toList() ??
         [];
 
-    debugPrint("✅ Lịch sử trò chuyện: ${jsonEncode(result)}");
+    // debugPrint("✅ Lịch sử trò chuyện: ${jsonEncode(result)}");
 
     return result;
   } else {

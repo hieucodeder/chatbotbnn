@@ -1,4 +1,5 @@
 import 'package:chatbotbnn/provider/chatbot_provider.dart';
+import 'package:chatbotbnn/provider/historyid_provider.dart'; // Import HistoryidProvider
 import 'package:chatbotbnn/service/chatbot_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,8 @@ class ChatProvider with ChangeNotifier {
   Future<void> loadInitialMessage(BuildContext context) async {
     final chatbotCode =
         Provider.of<ChatbotProvider>(context, listen: false).currentChatbotCode;
+    final historyProvider =
+        Provider.of<HistoryidProvider>(context, listen: false);
 
     if (chatbotCode != null) {
       final chatbotData = await fetchGetCodeModel(chatbotCode);
@@ -28,5 +31,8 @@ class ChatProvider with ChangeNotifier {
         notifyListeners(); // Cập nhật UI
       }
     }
+
+    // Đặt lại history_id thành ""
+    historyProvider.resetHistoryId();
   }
 }

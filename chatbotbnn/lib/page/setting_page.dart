@@ -85,14 +85,19 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Đổi mật khẩu"),
+          title: Text(
+            "Đổi mật khẩu",
+            style:
+                GoogleFonts.robotoCondensed(fontSize: 20, color: Colors.black),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: oldPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Nhập mật khẩu cũ",
+                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -100,8 +105,9 @@ class _SettingPageState extends State<SettingPage> {
               const SizedBox(height: 10),
               TextField(
                 controller: newPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Nhập mật khẩu mới",
+                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -109,8 +115,9 @@ class _SettingPageState extends State<SettingPage> {
               const SizedBox(height: 10),
               TextField(
                 controller: confirmPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Xác nhận mật khẩu mới",
+                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -203,6 +210,69 @@ class _SettingPageState extends State<SettingPage> {
     }
   }
 
+  Future<void> showUserInfoDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Lấy dữ liệu từ SharedPreferences
+    String? userName = prefs.getString('username') ?? "";
+    String? fullName = prefs.getString('full_name') ?? "";
+    String? email = prefs.getString('email') ?? "";
+
+    // Gán dữ liệu vào TextEditingController
+    TextEditingController usernameController =
+        TextEditingController(text: userName);
+    TextEditingController fullNameController =
+        TextEditingController(text: fullName);
+    TextEditingController emailController = TextEditingController(text: email);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Sửa người dùng'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              buildTextField("Tài khoản", usernameController),
+              buildTextField("Họ và tên", fullNameController),
+              buildTextField("Email", emailController),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Đóng'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Lưu thông tin vào SharedPreferences
+                await prefs.setString('username', usernameController.text);
+                await prefs.setString('full_name', fullNameController.text);
+                await prefs.setString('email', emailController.text);
+
+                Navigator.pop(context);
+              },
+              child: Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget buildTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Provider.of<NavigationProvider>(context);
@@ -224,9 +294,9 @@ class _SettingPageState extends State<SettingPage> {
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: () {
-                    navigationProvider.setCurrentIndex(4);
+                    showUserInfoDialog(context);
                   },
-                  child: Text('Thông tin cá nhân', style: styleText),
+                  child: Text('Tài khoản của bạn', style: styleText),
                 ),
               ],
             ),

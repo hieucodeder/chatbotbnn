@@ -2,6 +2,7 @@ import 'package:chatbotbnn/model/body_history.dart';
 import 'package:chatbotbnn/navigation/drawer.dart';
 import 'package:chatbotbnn/page/chat_page.dart';
 import 'package:chatbotbnn/page/chatbot_page.dart';
+import 'package:chatbotbnn/page/information_page.dart';
 import 'package:chatbotbnn/page/setting_page.dart';
 import 'package:chatbotbnn/provider/chat_provider.dart';
 import 'package:chatbotbnn/provider/navigation_provider.dart';
@@ -38,7 +39,8 @@ class _AppScreenState extends State<AppScreen> {
         );
       case 2:
         return const SettingPage();
-
+      case 3:
+        return const InformationPage();
       default:
         return const Center(
           child: Text(
@@ -64,6 +66,8 @@ class _AppScreenState extends State<AppScreen> {
         return 'DANH SÁCH TRỢ LÝ AI';
       case 2:
         return 'CÀI ĐẶT';
+      case 3:
+        return 'THÔNG TIN CÁ NHÂN';
       default:
         return 'activity_report';
     }
