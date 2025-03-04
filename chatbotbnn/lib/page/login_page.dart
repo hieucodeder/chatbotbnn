@@ -368,37 +368,37 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const SizedBox(
-                              width: 230,
-                            ),
-                            SizedBox(
-                              width: 130,
-                              height: 40,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  TextButton(
-                                    onPressed: () {},
-                                    child: Text(
-                                      'Quên mật khẩu?',
-                                      style: GoogleFonts.robotoCondensed(
-                                          fontWeight: FontWeight.w400,
-                                          color: const Color(0xFF064265),
-                                          decoration: TextDecoration.underline,
-                                          decorationColor:
-                                              const Color(0xFF064265)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        // Row(
+                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //   children: [
+                        //     const SizedBox(
+                        //       width: 230,
+                        //     ),
+                            // SizedBox(
+                            //   width: 130,
+                            //   height: 40,
+                            //   child: Row(
+                            //     mainAxisAlignment: MainAxisAlignment.start,
+                            //     children: [
+                            //       TextButton(
+                            //         onPressed: () {},
+                            //         child: Text(
+                            //           'Quên mật khẩu?',
+                            //           style: GoogleFonts.robotoCondensed(
+                            //               fontWeight: FontWeight.w400,
+                            //               color: const Color(0xFF064265),
+                            //               decoration: TextDecoration.underline,
+                            //               decorationColor:
+                            //                   const Color(0xFF064265)),
+                            //         ),
+                            //       ),
+                            //     ],
+                            //   ),
+                            // ),
                           ],
                         ),
-                      ],
-                    ),
+                    //   ],
+                    // ),
                   ),
                 ),
               ]),

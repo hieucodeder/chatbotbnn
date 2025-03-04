@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:chatbotbnn/model/body_chatbot_answer.dart';
 import 'package:chatbotbnn/model/body_suggestion.dart';
 import 'package:chatbotbnn/model/chatbot_config.dart';
@@ -17,7 +15,6 @@ import 'package:chatbotbnn/service/suggestion_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
@@ -629,6 +626,33 @@ class _ChatPageState extends State<ChatPage> {
                                 ),
                               ),
                             ),
+                            // 🖼 Kiểm tra nếu có ảnh thì hiển thị ảnh
+                            Builder(
+                              builder: (context) {
+                                final regex = RegExp(
+                                    r'!\[.*?\]\((https?://[^\)]+\.png)\)');
+                                final match =
+                                    regex.firstMatch(message['text'] ?? '');
+
+                                if (match != null) {
+                                  String imageUrl =
+                                      match.group(1)!; // Lấy URL ảnh
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return SizedBox.shrink(); // Không có ảnh thì ẩn
+                              },
+                            ),
+
                             // if (!isUser)
                             //   Row(
                             //     children: [

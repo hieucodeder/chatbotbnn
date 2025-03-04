@@ -81,6 +81,10 @@ class _SettingPageState extends State<SettingPage> {
   TextEditingController newPasswordController = TextEditingController();
   TextEditingController confirmPasswordController = TextEditingController();
   void showChangePasswordDialog(BuildContext context) {
+    final selectedColors =
+        Provider.of<Providercolor>(context, listen: false).selectedColor;
+    final textStyles =
+        GoogleFonts.robotoCondensed(fontSize: 16, color: Colors.black);
     showDialog(
       context: context,
       builder: (context) {
@@ -97,7 +101,7 @@ class _SettingPageState extends State<SettingPage> {
                 controller: oldPasswordController,
                 decoration: InputDecoration(
                   labelText: "Nhập mật khẩu cũ",
-                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
+                  hintStyle: textStyles,
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -107,7 +111,7 @@ class _SettingPageState extends State<SettingPage> {
                 controller: newPasswordController,
                 decoration: InputDecoration(
                   labelText: "Nhập mật khẩu mới",
-                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
+                  hintStyle: textStyles,
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -117,7 +121,7 @@ class _SettingPageState extends State<SettingPage> {
                 controller: confirmPasswordController,
                 decoration: InputDecoration(
                   labelText: "Xác nhận mật khẩu mới",
-                  hintStyle: GoogleFonts.robotoCondensed(fontSize: 16),
+                  hintStyle: textStyles,
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -129,7 +133,10 @@ class _SettingPageState extends State<SettingPage> {
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text("Hủy"),
+              child: Text(
+                "Hủy",
+                selectionColor: selectedColors,
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -169,7 +176,10 @@ class _SettingPageState extends State<SettingPage> {
                 // Gọi hàm xử lý đổi mật khẩu
                 handleForgetPassword(context);
               },
-              child: const Text("Lưu"),
+              child: Text(
+                "Lưu",
+                style: textStyles,
+              ),
             ),
           ],
         );
@@ -219,8 +229,9 @@ class _SettingPageState extends State<SettingPage> {
     String? email = prefs.getString('email') ?? "";
 
     // Gán dữ liệu vào TextEditingController
-    TextEditingController usernameController =
-        TextEditingController(text: userName);
+    TextEditingController usernameController = TextEditingController(
+      text: userName,
+    );
     TextEditingController fullNameController =
         TextEditingController(text: fullName);
     TextEditingController emailController = TextEditingController(text: email);
@@ -229,7 +240,10 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Sửa người dùng'),
+          title: Text(
+            'Sửa người dùng',
+            style: GoogleFonts.robotoCondensed(fontSize: 20),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -241,7 +255,10 @@ class _SettingPageState extends State<SettingPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Đóng'),
+              child: Text(
+                'Đóng',
+                style: GoogleFonts.robotoCondensed(fontSize: 20),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -252,7 +269,8 @@ class _SettingPageState extends State<SettingPage> {
 
                 Navigator.pop(context);
               },
-              child: Text('Lưu'),
+              child:
+                  Text('Lưu', style: GoogleFonts.robotoCondensed(fontSize: 20)),
             ),
           ],
         );
